@@ -50,19 +50,35 @@ export default function LoginPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (validateForm()) {
-      setIsLoading(true)
+  if (validateForm()) {
+    setIsLoading(true);
 
-      // Simulate API call
-      setTimeout(() => {
-        setIsLoading(false)
-        router.push("/home")
-      }, 1500)
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await res.json();
+    setIsLoading(false);
+
+    if (res.ok) {
+      const { access_token, refresh_token } = data;
+
+      // Guardar tokens en localStorage
+      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("refresh_token", refresh_token);
+
+      router.push("/home");
+    } else {
+      setErrors({ general: data.error });
     }
   }
+};
+
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -119,6 +135,8 @@ export default function LoginPage() {
               />
               {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
             </div>
+
+            {errors.general && <p className="text-red-500 text-sm">{errors.general}</p>}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -31,7 +30,6 @@ export default function RegisterPage() {
       [name]: type === "checkbox" ? checked : value,
     }))
 
-    // Clear error when user types
     if (errors[name]) {
       setErrors((prev) => {
         const newErrors = { ...prev }
@@ -44,10 +42,7 @@ export default function RegisterPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.name.trim()) {
-      newErrors.name = "El nombre es obligatorio"
-    }
-
+    if (!formData.name.trim()) newErrors.name = "El nombre es obligatorio"
     if (!formData.username.trim()) {
       newErrors.username = "El nombre de usuario es obligatorio"
     } else if (formData.username.length < 3) {
@@ -78,24 +73,52 @@ export default function RegisterPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (validateForm()) {
-      setIsLoading(true)
+    if (!validateForm()) return
 
-      // Simulate API call
-      setTimeout(() => {
+    setIsLoading(true)
+
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      let data
+      try {
+        data = await res.json()
+      } catch {
+        const text = await res.text()
+        console.error("Respuesta no JSON:", text)
+        setErrors({ general: "Error inesperado del servidor" })
         setIsLoading(false)
+        return
+      }
+
+      if (res.ok) {
         router.push("/home")
-      }, 1500)
+      } else {
+        setErrors({ general: data.error || "Error al registrar" })
+      }
+    } catch (err) {
+      console.error("Error de red:", err)
+      setErrors({ general: "Error de red o conexión con el servidor" })
     }
+
+    setIsLoading(false)
   }
 
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex-1 flex flex-col md:flex-row">
-        {/* Left side - Form */}
         <div className="w-full md:w-1/2 flex flex-col p-8 md:p-12 lg:p-16">
           <div className="mb-8">
             <Link href="/" className="inline-flex items-center text-sm text-gray-400 hover:text-white">
@@ -192,14 +215,13 @@ export default function RegisterPage() {
                 id="acceptTerms"
                 name="acceptTerms"
                 checked={formData.acceptTerms}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, acceptTerms: checked as boolean }))}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, acceptTerms: checked as boolean }))
+                }
                 className={errors.acceptTerms ? "border-red-500" : ""}
               />
               <div className="grid gap-1.5 leading-none">
-                <label
-                  htmlFor="acceptTerms"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
+                <label htmlFor="acceptTerms" className="text-sm font-medium">
                   Acepto los{" "}
                   <Link href="/terms" className="text-primary hover:underline">
                     términos y condiciones
@@ -212,6 +234,8 @@ export default function RegisterPage() {
                 {errors.acceptTerms && <p className="text-red-500 text-sm">{errors.acceptTerms}</p>}
               </div>
             </div>
+
+            {errors.general && <p className="text-red-500 text-sm">{errors.general}</p>}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Creando cuenta..." : "Crear cuenta"}
@@ -230,12 +254,7 @@ export default function RegisterPage() {
         <div className="hidden md:block md:w-1/2 bg-gray-900 relative">
           <div className="absolute inset-0">
             <div className="absolute inset-0 bg-gradient-to-r from-black to-transparent z-10"></div>
-            <div className="h-full w-full">
-              <div
-                className="h-full w-full bg-cover bg-center"
-                style={{ backgroundImage: "url('/placeholder.svg?height=1080&width=1920')" }}
-              ></div>
-            </div>
+            <div className="h-full w-full bg-cover bg-center" style={{ backgroundImage: "url('/placeholder.svg?height=1080&width=1920')" }}></div>
           </div>
         </div>
       </div>
