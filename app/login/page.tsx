@@ -1,29 +1,22 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Film, ArrowLeft } from "lucide-react"
-import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
   const router = useRouter()
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  })
+  const [formData, setFormData] = useState({ email: "", password: "" })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
-
-    // Clear error when user types
     if (errors[name]) {
       setErrors((prev) => {
         const newErrors = { ...prev }
@@ -35,55 +28,45 @@ export default function LoginPage() {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
-
-    if (!formData.email) {
-      newErrors.email = "El email es obligatorio"
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email inválido"
-    }
-
-    if (!formData.password) {
-      newErrors.password = "La contraseña es obligatoria"
-    }
-
+    if (!formData.email) newErrors.email = "El email es obligatorio"
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email inválido"
+    if (!formData.password) newErrors.password = "La contraseña es obligatoria"
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault()
 
-  if (validateForm()) {
-    setIsLoading(true);
+    if (!validateForm()) return
 
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
+    setIsLoading(true)
 
-    const data = await res.json();
-    setIsLoading(false);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
 
-    if (res.ok) {
-      const { access_token, refresh_token } = data;
+      const data = await res.json()
+      setIsLoading(false)
 
-      // Guardar tokens en localStorage
-      localStorage.setItem("access_token", access_token);
-      localStorage.setItem("refresh_token", refresh_token);
-
-      router.push("/home");
-    } else {
-      setErrors({ general: data.error });
+      if (res.ok) {
+        router.push("/home") // Tokens están en cookies, no hace falta guardar nada
+      } else {
+        setErrors({ general: data.error || "Error al iniciar sesión" })
+      }
+    } catch (err) {
+      console.error("Error de red:", err)
+      setErrors({ general: "Error de red o conexión con el servidor" })
+      setIsLoading(false)
     }
   }
-};
-
 
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex-1 flex flex-col md:flex-row">
-        {/* Left side - Form */}
         <div className="w-full md:w-1/2 flex flex-col p-8 md:p-12 lg:p-16">
           <div className="mb-8">
             <Link href="/" className="inline-flex items-center text-sm text-gray-400 hover:text-white">
@@ -151,7 +134,6 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Right side - Image */}
         <div className="hidden md:block md:w-1/2 bg-gray-900 relative">
           <div className="absolute inset-0">
             <div className="absolute inset-0 bg-gradient-to-r from-black to-transparent z-10"></div>
