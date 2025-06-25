@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -11,19 +10,33 @@ import {
   Bell, MessageSquare, Users, List, Calendar, Home,
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import useUser from "@/lib/useUser"
+import { usePathname, useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabaseClient"
+import { useAuth } from "@/context/auth-provider"
 
 export default function MobileNav() {
   const [isOpen, setIsOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const pathname = usePathname()
-  const user = useUser()
+  const router = useRouter()
+  const { profile: user } = useAuth()
 
   useEffect(() => {
     setIsOpen(false)
     setIsSearchOpen(false)
   }, [pathname])
+
+  const handleLogout = async () => {
+  await supabase.auth.signOut()
+
+  localStorage.removeItem("access_token")
+  localStorage.removeItem("refresh_token")
+
+  // Redirige solo cuando el contexto haya procesado el cambio
+  setTimeout(() => {
+    router.push("/")
+  }, 100) // Delay mínimo para que el contexto se actualice primero
+}
 
   const navigationItems = [
     { name: "Inicio", href: "/home", icon: <Home className="h-5 w-5" /> },
@@ -114,11 +127,9 @@ export default function MobileNav() {
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
-            <Button variant="outline" className="w-full" asChild>
-              <Link href="/login">
-                <LogOut className="h-4 w-4 mr-2" />
-                Cerrar sesión
-              </Link>
+            <Button variant="outline" className="w-full" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Cerrar sesión
             </Button>
           </div>
         </SheetContent>

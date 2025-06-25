@@ -1,11 +1,11 @@
-
 "use client"
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Home, Film, List, MessageSquare, Users, Bell, Menu, X, User } from "lucide-react"
+import { Search, Home, Film, List, MessageSquare, Users, Bell, Menu, X } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,12 +16,27 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { usePathname } from "next/navigation"
-import useUser from "@/lib/useUser"
+import { supabase } from "@/lib/supabaseClient"
+import { useAuth } from "@/context/auth-provider"
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const pathname = usePathname()
-  const user = useUser()
+  const router = useRouter()
+  const { profile: user } = useAuth()
+
+  const handleLogout = async () => {
+  await supabase.auth.signOut()
+
+  localStorage.removeItem("access_token")
+  localStorage.removeItem("refresh_token")
+
+  // Redirige solo cuando el contexto haya procesado el cambio
+  setTimeout(() => {
+    router.push("/")
+  }, 100) // Delay mínimo para que el contexto se actualice primero
+}
+
 
   if (pathname === "/login" || pathname === "/register") {
     return null
@@ -75,7 +90,7 @@ export default function Navbar() {
               <DropdownMenuItem><Link href="/profile" className="flex w-full">Perfil</Link></DropdownMenuItem>
               <DropdownMenuItem><Link href="/settings" className="flex w-full">Configuración</Link></DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem><Link href="/login">Cerrar sesión</Link></DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>Cerrar sesión</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
