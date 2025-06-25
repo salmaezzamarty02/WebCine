@@ -36,16 +36,32 @@ export async function getMoviesByGenre(genre: string) {
 }
 
 // Obtener reseñas de una película por su ID
-export async function getReviewsByMovieId(movieId: string): Promise<any[]> {
+export async function getReviewsByMovieId(movieId: string) {
   const { data, error } = await supabase
     .from("reviews")
-    .select("*")
+    .select(`
+      id,
+      content,
+      rating,
+      created_at,
+      user_id,
+      profiles (
+        id,
+        username,
+        avatar
+      )
+    `)
     .eq("movie_id", movieId)
     .order("created_at", { ascending: false })
 
-  if (error) throw error
-  return data || []
+  if (error) {
+    console.error("❌ Error obteniendo reseñas:", error.message)
+    return []
+  }
+
+  return data
 }
+
 
 // Obtener películas similares a partir de la tabla de enlaces
 export async function getSimilarMovies(movieId: string): Promise<any[]> {
@@ -69,25 +85,88 @@ export async function getSimilarMovies(movieId: string): Promise<any[]> {
   return movies || []
 }
 
-// Añadir una nueva reseña a una película
+// ✅ Añadir una nueva reseña a una película (actualizado)
 export async function addReview({
-  movieId,
-  userId,
-  rating,
+  movie_id,
   content,
+  rating,
+  user_id
 }: {
-  movieId: string
-  userId: string | null
-  rating: number
+  movie_id: string
   content: string
+  rating: number
+  user_id: string
 }) {
-  const { error } = await supabase.from("reviews").insert([
-    {
-      movie_id: movieId,
-      user_id: userId,
-      rating,
-      content,
-    },
-  ])
-  if (error) throw error
+  const { data, error } = await supabase.from("reviews").insert({
+    movie_id,
+    content,
+    rating,
+    user_id
+  })
+
+  if (error) {
+    console.error("❌ Error al insertar reseña:", error.message)
+    throw error
+  }
+
+  return data
+}
+
+// Obtener todas las listas de seguimiento del usuario
+export async function getUserWatchlists(userId: string) {
+  const { data, error } = await supabase
+    .from("watchlists")
+    .select(`
+      *,
+      user:users (
+        id,
+        name,
+        avatar
+      )
+    `)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("❌ Error obteniendo listas de seguimiento:", error.message)
+    throw error
+  }
+  return data || []
+}
+
+// Obtener una lista de seguimiento por su ID
+export async function getWatchlistById(watchlistId: string) {
+  const { data, error } = await supabase
+    .from("watchlists")
+    .select("*")
+    .eq("id", watchlistId)
+    .single()
+
+  if (error) {
+    console.error("❌ Error obteniendo watchlist:", error.message)
+    throw error
+  }
+
+  return data
+}
+// Añadir una película a una lista de seguimiento
+
+export async function addMovieToWatchlist({
+  watchlistId,
+  movieId
+}: {
+  watchlistId: string
+  movieId: string
+}) {
+  const { data, error } = await supabase.from("watchlist_movies").insert({
+    watchlist_id: watchlistId,
+    movie_id: movieId
+  })
+
+  if (error) {
+    console.error("❌ Error al añadir película a la lista de seguimiento:", error.message)
+    throw error
+  }
+
+  return data
 }

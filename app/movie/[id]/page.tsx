@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
@@ -12,10 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import MovieCard from "@/components/movie-card"
 import { getMovieById, getReviewsByMovieId, getSimilarMovies, addReview } from "@/lib/queries"
-import { supabase } from "@/lib/supabaseClient"
-
-
-//const supabase = createClient()
+import { useAuth } from "@/context/auth-provider"
 
 export default function MoviePage() {
   const { id } = useParams()
@@ -24,6 +21,7 @@ export default function MoviePage() {
   const [similar, setSimilar] = useState<any[]>([])
   const [userRating, setUserRating] = useState(0)
   const [reviewText, setReviewText] = useState("")
+  const { profile } = useAuth()
 
   useEffect(() => {
     if (!id) return
@@ -42,8 +40,10 @@ export default function MoviePage() {
   }, [id])
 
   const handlePublishReview = async () => {
-    const { data: sessionData } = await supabase.auth.getSession()
-    const user = sessionData.session?.user
+    // if (!profile) {
+    //   alert("Debes iniciar sesión para publicar una reseña")
+    //   return
+    // }
 
     if (!reviewText || userRating === 0) {
       alert("Completa tu reseña y valoración")
@@ -51,18 +51,21 @@ export default function MoviePage() {
     }
 
     try {
-      await addReview({
-        movieId: movie.id,
-        userId: user?.id || null,
+      const result = await addReview({
+        movie_id: movie.id,
+        user_id: profile.id,
         rating: userRating,
-        content: reviewText
+        content: reviewText,
       })
+
       setUserRating(0)
       setReviewText("")
       const updatedReviews = await getReviewsByMovieId(movie.id)
       setReviews(updatedReviews)
+
       alert("Reseña publicada")
-    } catch {
+    } catch (err) {
+      console.error("Error al publicar reseña:", err)
       alert("Error al publicar reseña")
     }
   }
@@ -206,8 +209,12 @@ export default function MoviePage() {
                           <div>
                             <div className="font-medium">
                               <Link href={`/profile/${review.user_id}`} className="hover:underline">
-                                Usuario
+                                {review.profiles?.username || "Usuario"}
                               </Link>
+                              {/* <AvatarImage src={review.profiles?.avatar || "/placeholder.svg"} />
+                              <AvatarFallback>
+                                {(review.profiles?.username || "U")?.slice(0, 2).toUpperCase()}
+                              </AvatarFallback> */}
                             </div>
                             <p className="text-xs text-gray-500">
                               {new Date(review.created_at).toLocaleDateString()}

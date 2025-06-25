@@ -13,38 +13,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export default function WatchlistsPage() {
-  // Mock data
-  const myLists = [
-    {
-      id: "list1",
-      title: "Películas por ver",
-      description: "Mi lista de pendientes",
-      movieCount: 24,
-      privacy: "private",
-      coverImage: "/placeholder.svg?height=300&width=600&text=Watchlist",
-      updatedAt: "Actualizada hace 2 días",
-    },
-    {
-      id: "list2",
-      title: "Mis favoritas de 2023",
-      description: "Las mejores películas que vi el año pasado",
-      movieCount: 12,
-      privacy: "public",
-      coverImage: "/placeholder.svg?height=300&width=600&text=Favorites",
-      updatedAt: "Actualizada hace 1 semana",
-    },
-    {
-      id: "list3",
-      title: "Clásicos del cine negro",
-      description: "Colección de film noir de los años 40 y 50",
-      movieCount: 18,
-      privacy: "public",
-      coverImage: "/placeholder.svg?height=300&width=600&text=Film+Noir",
-      updatedAt: "Actualizada hace 2 semanas",
-    },
-  ]
+import WatchlistClient from "./WatchlistClient" // ⬅️ Este es el nuevo import dinámico
 
+export default function WatchlistsPage() {
+  // Datos mock solo para pestaña "followed"
   const followedLists = [
     {
       id: "list4",
@@ -101,73 +73,7 @@ export default function WatchlistsPage() {
         </TabsList>
 
         <TabsContent value="my-lists">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myLists.map((list) => (
-              <div key={list.id} className="rounded-lg border border-gray-800 overflow-hidden group">
-                <Link href={`/watchlists/${list.id}`} className="block">
-                  <div className="h-40 relative">
-                    <Image
-                      src={list.coverImage || "/placeholder.svg"}
-                      alt={list.title}
-                      fill
-                      className="object-cover transition-transform group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
-                    <div className="absolute bottom-3 right-3 flex items-center">
-                      <div className="bg-black/70 rounded-full p-1.5">
-                        {list.privacy === "private" ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-
-                <div className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <Link href={`/watchlists/${list.id}`} className="block">
-                        <h3 className="font-medium text-lg hover:text-primary transition-colors">{list.title}</h3>
-                      </Link>
-                      <p className="text-sm text-gray-400 mt-1">{list.description}</p>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Compartir</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-500">Eliminar</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-800">
-                    <div className="flex items-center">
-                      <Film className="h-4 w-4 mr-1 text-gray-400" />
-                      <span className="text-sm text-gray-400">{list.movieCount} películas</span>
-                    </div>
-                    <span className="text-xs text-gray-500">{list.updatedAt}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Create New List Card */}
-            <div className="rounded-lg border border-dashed border-gray-700 flex flex-col items-center justify-center p-8 h-full min-h-[250px]">
-              <div className="bg-gray-800 rounded-full p-3 mb-4">
-                <Plus className="h-6 w-6" />
-              </div>
-              <h3 className="font-medium text-lg mb-2">Crear nueva lista</h3>
-              <p className="text-sm text-gray-400 text-center mb-4">Organiza tus películas favoritas o pendientes</p>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nueva lista
-              </Button>
-            </div>
-          </div>
+          <WatchlistClient />
         </TabsContent>
 
         <TabsContent value="followed">
@@ -228,7 +134,7 @@ export default function WatchlistsPage() {
               </div>
             ))}
 
-            {/* Find Lists Card */}
+            {/* Card para descubrir listas */}
             <div className="rounded-lg border border-dashed border-gray-700 flex flex-col items-center justify-center p-8 h-full min-h-[250px]">
               <div className="bg-gray-800 rounded-full p-3 mb-4">
                 <Users className="h-6 w-6" />

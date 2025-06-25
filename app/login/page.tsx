@@ -53,7 +53,11 @@ export default function LoginPage() {
       setIsLoading(false)
 
       if (res.ok) {
-        router.push("/home") // Tokens están en cookies, no hace falta guardar nada
+        // Guardamos los tokens en localStorage para restaurar la sesión
+        localStorage.setItem("access_token", data.access_token)
+        localStorage.setItem("refresh_token", data.refresh_token)
+
+        router.push("/home")
       } else {
         setErrors({ general: data.error || "Error al iniciar sesión" })
       }

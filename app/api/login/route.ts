@@ -31,5 +31,10 @@ export async function POST(req: Request) {
     maxAge: 60 * 60 * 24 * 30, // 30 días
   });
 
-  return NextResponse.json({ success: true }, { status: 200 });
+  return NextResponse.json({
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    user: data.session.user,
+  }, { status: 200 });
+
 }

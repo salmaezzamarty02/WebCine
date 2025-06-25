@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
-import useUser from "@/lib/useUser"
+import { useAuth } from "@/context/auth-provider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,8 +24,9 @@ import Image from "next/image"
 
 export default function ProfileClient({ userId }: { userId: string }) {
   const [profile, setProfile] = useState<any>(null)
-  const user = useUser()
-  const isOwnProfile = user?.id === userId
+  const { profile: currentUser } = useAuth()
+  const isOwnProfile = currentUser?.id === userId
+
 
   useEffect(() => {
     const fetchProfile = async () => {
