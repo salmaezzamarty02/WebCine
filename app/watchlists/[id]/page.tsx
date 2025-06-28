@@ -3,12 +3,13 @@ import { notFound } from "next/navigation"
 import { WatchlistDetail } from "./WatchlistDetail"
 import { createClient } from "@/lib/supabaseServer"
 
+export const dynamic = "force-dynamic" // 👈 Esto evita el error
+
 interface Props {
   params: { id: string }
 }
 
-export default async function WatchlistPage(props: Props) {
-  const { id } = props.params
+export default async function WatchlistPage({ params }: Props) {
   const supabase = await createClient()
 
   const { data: watchlist, error } = await supabase
@@ -23,7 +24,7 @@ export default async function WatchlistPage(props: Props) {
         )
       )
     `)
-    .eq("id", id)
+    .eq("id", params.id)
     .single()
 
   if (error || !watchlist) return notFound()

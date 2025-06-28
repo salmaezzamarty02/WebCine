@@ -4,14 +4,22 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, Plus, Heart, MessageSquare, Share, Bookmark, Eye } from "lucide-react"
+import { Star, Plus, Share, Bookmark, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import MovieCard from "@/components/movie-card"
-import { getMovieById, getReviewsByMovieId, getSimilarMovies, addReview } from "@/lib/queries"
+import {
+  getMovieById,
+  getReviewsByMovieId,
+  getSimilarMovies,
+  addReview,
+  markMovieAsWatched,
+  unmarkMovieAsWatched,
+  isMovieWatchedByUser
+} from "@/lib/queries"
 import { useAuth } from "@/context/auth-provider"
 
 export default function MoviePage() {
@@ -21,6 +29,7 @@ export default function MoviePage() {
   const [similar, setSimilar] = useState<any[]>([])
   const [userRating, setUserRating] = useState(0)
   const [reviewText, setReviewText] = useState("")
+  const [isWatched, setIsWatched] = useState(false)
   const { profile } = useAuth()
 
   useEffect(() => {
@@ -34,36 +43,62 @@ export default function MoviePage() {
       setMovie(movieData)
       setReviews(reviewData)
       setSimilar(similarData)
+
+      if (profile?.id) {
+        const watched = await isMovieWatchedByUser({
+          userId: profile.id,
+          movieId: movieData.id
+        })
+        setIsWatched(watched)
+      }
     }
 
     fetchData()
-  }, [id])
+  }, [id, profile?.id])
+
+  const handleToggleWatched = async () => {
+    if (!profile?.id) {
+      alert("Debes iniciar sesión para marcar como vista")
+      return
+    }
+
+    try {
+      if (isWatched) {
+        await unmarkMovieAsWatched({ userId: profile.id, movieId: movie.id })
+        setIsWatched(false)
+      } else {
+        await markMovieAsWatched({ userId: profile.id, movieId: movie.id })
+        setIsWatched(true)
+      }
+    } catch (err) {
+      console.error("Error al actualizar estado de película:", err)
+      alert("Error al actualizar estado de película")
+    }
+  }
 
   const handlePublishReview = async () => {
-    // if (!profile) {
-    //   alert("Debes iniciar sesión para publicar una reseña")
-    //   return
-    // }
+    if (!profile?.id) {
+      alert("Debes iniciar sesión para publicar una reseña")
+      return
+    }
 
-    if (!reviewText || userRating === 0) {
+    if (!reviewText.trim() || userRating === 0) {
       alert("Completa tu reseña y valoración")
       return
     }
 
     try {
-      const result = await addReview({
+      await addReview({
         movie_id: movie.id,
         user_id: profile.id,
         rating: userRating,
-        content: reviewText,
+        content: reviewText.trim(),
       })
-
       setUserRating(0)
       setReviewText("")
       const updatedReviews = await getReviewsByMovieId(movie.id)
       setReviews(updatedReviews)
-
-      alert("Reseña publicada")
+      alert("Reseña publicada correctamente")
     } catch (err) {
       console.error("Error al publicar reseña:", err)
       alert("Error al publicar reseña")
@@ -74,6 +109,7 @@ export default function MoviePage() {
 
   return (
     <div>
+      {/* HERO */}
       <div className="relative h-[50vh] md:h-[70vh]">
         <Image
           src={movie.backdrop_url || movie.image_url || "/placeholder.svg"}
@@ -92,9 +128,6 @@ export default function MoviePage() {
 
           <div className="flex-1 text-white">
             <h1 className="text-3xl md:text-5xl font-bold">{movie.title}</h1>
-            {movie.original_title && movie.original_title !== movie.title && (
-              <p className="text-gray-400">{movie.original_title}</p>
-            )}
 
             <div className="flex flex-wrap items-center gap-3 mt-2">
               {movie.release_year && <span>{movie.release_year}</span>}
@@ -119,7 +152,13 @@ export default function MoviePage() {
             </div>
 
             <div className="flex flex-wrap gap-2 mt-4">
-              <Button><Eye className="mr-2 h-4 w-4" /> Marcar como vista</Button>
+              <Button
+                onClick={handleToggleWatched}
+                variant={isWatched ? "secondary" : "default"}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                {isWatched ? "Vista" : "Marcar como vista"}
+              </Button>
               <Button variant="outline"><Star className="mr-2 h-4 w-4" /> Valorar</Button>
               <Button variant="outline"><Plus className="mr-2 h-4 w-4" /> Añadir a lista</Button>
               <Button variant="ghost" size="icon"><Bookmark className="h-5 w-5" /></Button>

@@ -169,4 +169,68 @@ export async function addMovieToWatchlist({
   }
 
   return data
+}  
+
+// Marcar película como vista
+export async function markMovieAsWatched({
+  userId,
+  movieId
+}: {
+  userId: string
+  movieId: string
+}) {
+  const { data, error } = await supabase.from("watched_movies").insert({
+    user_id: userId,
+    movie_id: movieId
+  })
+
+  if (error) {
+    console.error("❌ Error al marcar como vista:", error.message)
+    throw error
+  }
+
+  return data
+}
+
+// Desmarcar película como vista
+export async function unmarkMovieAsWatched({
+  userId,
+  movieId
+}: {
+  userId: string
+  movieId: string
+}) {
+  const { error } = await supabase
+    .from("watched_movies")
+    .delete()
+    .eq("user_id", userId)
+    .eq("movie_id", movieId)
+
+  if (error) {
+    console.error("❌ Error al desmarcar como vista:", error.message)
+    throw error
+  }
+}
+
+// Comprobar si la película está marcada como vista por el usuario
+export async function isMovieWatchedByUser({
+  userId,
+  movieId
+}: {
+  userId: string
+  movieId: string
+}) {
+  const { data, error } = await supabase
+    .from("watched_movies")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("movie_id", movieId)
+    .maybeSingle()
+
+  if (error) {
+    console.error("❌ Error comprobando si la película está vista:", error.message)
+    throw error
+  }
+
+  return !!data
 }

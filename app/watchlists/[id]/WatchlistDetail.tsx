@@ -1,3 +1,4 @@
+// app/watchlists/[id]/WatchlistDetail.tsx
 "use client"
 
 import { Badge } from "@/components/ui/badge"

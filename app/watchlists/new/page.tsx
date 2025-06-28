@@ -2,19 +2,18 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabaseClient"
 import useUser from "@/lib/useUser"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Save, Plus, X, Lock, Globe, Search, Film } from "lucide-react"
+import { Save, Plus, X, Lock, Globe, Search } from "lucide-react"
 import Image from "next/image"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function NewWatchlistPage() {
   const router = useRouter()
@@ -45,38 +44,42 @@ export default function NewWatchlistPage() {
   }
 
   const handleCreate = async () => {
+    if (!user?.id) {
+      setError("Debes iniciar sesión para crear una lista.")
+      return
+    }
+
     if (!formData.name.trim()) {
       setError("El nombre es obligatorio")
       return
     }
+
     setError("")
 
-    const { data: newWatchlist, error: insertError } = await supabase
-      .from("watchlists")
-      .insert({
-        name: formData.name,
-        description: formData.description,
-        user_id: user?.id,
-        is_public: formData.is_public,
+    try {
+      const res = await fetch("/api/watchlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          is_public: formData.is_public,
+          movie_ids: selected.map((m) => m.id),
+        }),
       })
-      .select()
-      .single()
 
-    if (insertError || !newWatchlist) {
-      setError("Error al crear la lista")
-      return
+      const { watchlist, error } = await res.json()
+
+      if (!res.ok || error || !watchlist) {
+        setError("Error al crear la lista")
+        return
+      }
+
+      router.push(`/watchlists/${watchlist.id}`)
+    } catch (e) {
+      setError("Error inesperado al crear la lista")
+      console.error(e)
     }
-
-    // Insertar películas
-    const insertMovies = selected.map((m) => ({
-      movie_id: m.id,
-      watchlist_id: newWatchlist.id,
-    }))
-    if (insertMovies.length > 0) {
-      await supabase.from("watchlist_movies").insert(insertMovies)
-    }
-
-    router.push(`/watchlists/${newWatchlist.id}`)
   }
 
   return (
@@ -132,7 +135,6 @@ export default function NewWatchlistPage() {
             </RadioGroup>
           </div>
 
-          {/* Etiquetas */}
           <div>
             <Label>Etiquetas</Label>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -185,7 +187,6 @@ export default function NewWatchlistPage() {
         </CardContent>
       </Card>
 
-      {/* Películas */}
       <Card>
         <CardHeader>
           <CardTitle>Añadir películas</CardTitle>
