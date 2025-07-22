@@ -254,7 +254,7 @@ export default function RegisterPage() {
         <div className="hidden md:block md:w-1/2 bg-gray-900 relative">
           <div className="absolute inset-0">
             <div className="absolute inset-0 bg-gradient-to-r from-black to-transparent z-10"></div>
-            <div className="h-full w-full bg-cover bg-center" style={{ backgroundImage: "url('/placeholder.svg?height=1080&width=1920')" }}></div>
+            <div className="h-full w-full bg-cover bg-center" style={{ backgroundImage: "url('/register.png?height=1080&width=1920')" }}></div>
           </div>
         </div>
       </div>

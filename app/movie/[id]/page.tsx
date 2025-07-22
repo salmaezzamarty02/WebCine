@@ -4,13 +4,15 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, Plus, Share, Bookmark, Eye } from "lucide-react"
+import { Star, Share, Bookmark, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import MovieCard from "@/components/movie-card"
+import AddToListDialog from "@/components/add-to-list-dialog"
+
 import {
   getMovieById,
   getReviewsByMovieId,
@@ -20,6 +22,7 @@ import {
   unmarkMovieAsWatched,
   isMovieWatchedByUser
 } from "@/lib/queries"
+
 import { useAuth } from "@/context/auth-provider"
 
 export default function MoviePage() {
@@ -151,18 +154,26 @@ export default function MoviePage() {
               <div className="text-sm text-gray-400">{reviews.length} reseñas</div>
             </div>
 
+            {/* BOTONES DE ACCIONES */}
             <div className="flex flex-wrap gap-2 mt-4">
-              <Button
-                onClick={handleToggleWatched}
-                variant={isWatched ? "secondary" : "default"}
-              >
+              <Button onClick={handleToggleWatched} variant={isWatched ? "secondary" : "default"}>
                 <Eye className="mr-2 h-4 w-4" />
                 {isWatched ? "Vista" : "Marcar como vista"}
               </Button>
-              <Button variant="outline"><Star className="mr-2 h-4 w-4" /> Valorar</Button>
-              <Button variant="outline"><Plus className="mr-2 h-4 w-4" /> Añadir a lista</Button>
-              <Button variant="ghost" size="icon"><Bookmark className="h-5 w-5" /></Button>
-              <Button variant="ghost" size="icon"><Share className="h-5 w-5" /></Button>
+              <Button variant="outline">
+                <Star className="mr-2 h-4 w-4" /> Valorar
+              </Button>
+              <AddToListDialog
+                movieId={movie.id}
+                movieTitle={movie.title}
+                moviePoster={movie.image_url || "/placeholder.svg"}
+              />
+              <Button variant="ghost" size="icon">
+                <Bookmark className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon">
+                <Share className="h-5 w-5" />
+              </Button>
             </div>
           </div>
         </div>
@@ -177,32 +188,12 @@ export default function MoviePage() {
                 <TabsTrigger value="reviews">Reseñas</TabsTrigger>
               </TabsList>
 
+              {/* INFO */}
               <TabsContent value="info" className="space-y-6">
                 <div>
                   <h2 className="text-xl font-bold mb-2">Sinopsis</h2>
                   <p className="text-gray-300">{movie.description || "Sin descripción disponible."}</p>
                 </div>
-
-                {movie.cast && (
-                  <div>
-                    <h2 className="text-xl font-bold mb-2">Reparto</h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {movie.cast.map((actor: any, idx: number) => (
-                        <div key={idx} className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={`/placeholder.svg?text=${actor.name?.slice(0, 2)}`} />
-                            <AvatarFallback>{actor.name?.slice(0, 2)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{actor.name}</p>
-                            <p className="text-sm text-gray-400">{actor.character}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {movie.director && (
                   <div>
                     <h2 className="text-xl font-bold mb-2">Director</h2>
@@ -211,6 +202,7 @@ export default function MoviePage() {
                 )}
               </TabsContent>
 
+              {/* RESEÑAS */}
               <TabsContent value="reviews" className="space-y-6">
                 <div className="rounded-lg border border-gray-800 p-4">
                   <h3 className="font-medium mb-3">Escribe tu reseña</h3>
@@ -250,14 +242,8 @@ export default function MoviePage() {
                               <Link href={`/profile/${review.user_id}`} className="hover:underline">
                                 {review.profiles?.username || "Usuario"}
                               </Link>
-                              {/* <AvatarImage src={review.profiles?.avatar || "/placeholder.svg"} />
-                              <AvatarFallback>
-                                {(review.profiles?.username || "U")?.slice(0, 2).toUpperCase()}
-                              </AvatarFallback> */}
                             </div>
-                            <p className="text-xs text-gray-500">
-                              {new Date(review.created_at).toLocaleDateString()}
-                            </p>
+                            <p className="text-xs text-gray-500">{new Date(review.created_at).toLocaleDateString()}</p>
                           </div>
                         </div>
                         <div className="flex">
@@ -277,6 +263,7 @@ export default function MoviePage() {
             </Tabs>
           </div>
 
+          {/* SIMILARES */}
           <div className="space-y-6">
             <h2 className="text-xl font-bold">Películas similares</h2>
             <div className="grid grid-cols-2 gap-4">
@@ -295,6 +282,7 @@ export default function MoviePage() {
           </div>
         </div>
       </div>
+      
     </div>
   )
 }

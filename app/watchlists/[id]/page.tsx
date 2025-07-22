@@ -1,22 +1,20 @@
 // app/watchlists/[id]/page.tsx
-import { notFound } from "next/navigation"
-import { WatchlistDetail } from "./WatchlistDetail"
-import { createClient } from "@/lib/supabaseServer"
 
-export const dynamic = "force-dynamic" // 👈 Esto evita el error
+import { createClient } from "@/lib/supabaseServer";
+import { WatchlistDetail } from "./WatchlistDetail";
+import { notFound } from "next/navigation";
 
-interface Props {
-  params: { id: string }
-}
+type Props = {
+  params: { id: string };
+};
 
 export default async function WatchlistPage({ params }: Props) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   const { data: watchlist, error } = await supabase
     .from("watchlists")
     .select(`
       *,
-      user:profiles(id, name, avatar),
       movies:watchlist_movies(
         added_at,
         movie:movies(
@@ -25,9 +23,26 @@ export default async function WatchlistPage({ params }: Props) {
       )
     `)
     .eq("id", params.id)
-    .single()
+    .single();
 
-  if (error || !watchlist) return notFound()
+  if (error || !watchlist) {
+    console.error("Error fetching watchlist:", error);
+    return notFound();
+  }
 
-  return <WatchlistDetail watchlist={watchlist} />
+  // Si quieres traer el usuario manualmente:
+  const { data: user, error: userError } = await supabase
+    .from("profiles")
+    .select("id, name, avatar")
+    .eq("id", watchlist.user_id)
+    .single();
+
+  if (userError) {
+    console.error("Error fetching user:", userError);
+    return notFound();
+  }
+
+  const watchlistWithUser = { ...watchlist, user };
+
+  return <WatchlistDetail watchlist={watchlistWithUser} />;
 }

@@ -101,7 +101,7 @@ export default function LoginPage() {
                 onChange={handleChange}
                 className={errors.email ? "border-red-500" : ""}
               />
-              {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
+              {errors.email && <p className ="text-red-500 text-sm">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
