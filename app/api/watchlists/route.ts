@@ -5,7 +5,7 @@ import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
   try {
-    const { name, description, is_public, movie_ids } = await req.json()
+    const { name, description, is_public, movie_ids, cover_url } = await req.json()
 
     // Validaciones mínimas
     if (!name || typeof name !== "string") {
@@ -27,13 +27,14 @@ export async function POST(req: Request) {
 
     const user_id = sessionData.user.id
 
-    // Crear la watchlist
+    // Crear la watchlist, incluyendo cover_url si se ha enviado
     const { data: newWatchlist, error: insertError } = await supabase
       .from("watchlists")
       .insert({
         name,
         description,
         is_public,
+        cover_url,    
         user_id,
       })
       .select()
@@ -51,11 +52,17 @@ export async function POST(req: Request) {
         watchlist_id: newWatchlist.id,
       }))
 
-      const { error: movieError } = await supabase.from("watchlist_movies").insert(movieInserts)
+      const { error: movieError } = await supabase
+        .from("watchlist_movies")
+        .insert(movieInserts)
 
       if (movieError) {
         console.error("Error al insertar películas:", movieError.message)
-        return NextResponse.json({ error: "Lista creada, pero falló la inserción de películas" }, { status: 500 })
+        // Aunque fallen las inserciones de películas, devolvemos la watchlist creada
+        return NextResponse.json(
+          { watchlist: newWatchlist, warning: "Lista creada, pero falló la inserción de películas" },
+          { status: 201 }
+        )
       }
     }
 

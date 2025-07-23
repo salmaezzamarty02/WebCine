@@ -8,12 +8,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Save, Plus, X, Lock, Globe, Search } from "lucide-react"
+import { Save, Plus, X, Lock, Globe, Search, Upload } from "lucide-react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabaseClient"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 
 export default function NewWatchlistPage() {
   const router = useRouter()
@@ -23,15 +23,17 @@ export default function NewWatchlistPage() {
     name: "",
     description: "",
     is_public: false,
-    category: "",
     tags: [] as string[],
   })
-
   const [newTag, setNewTag] = useState("")
   const [search, setSearch] = useState("")
   const [movies, setMovies] = useState<any[]>([])
   const [selected, setSelected] = useState<any[]>([])
   const [error, setError] = useState("")
+
+  // Cover upload state
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string>("")
 
   const fetchMovies = async (query: string) => {
     const { data } = await supabase
@@ -39,24 +41,64 @@ export default function NewWatchlistPage() {
       .select("*")
       .ilike("title", `%${query}%`)
       .limit(10)
-
     setMovies(data || [])
   }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null
+    if (file) {
+      setCoverFile(file)
+      setCoverPreview(URL.createObjectURL(file))
+    }
+  }
+
+  const uploadCover = async (): Promise<string | null> => {
+    if (!coverFile) return null
+
+    // Generar nombre único
+    const ext = coverFile.name.split(".").pop()
+    const filename = `${crypto.randomUUID()}.${ext}`
+
+    // Subir al bucket
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from("watchlist-covers")
+      .upload(filename, coverFile, {
+        cacheControl: "3600",
+        upsert: false,
+        metadata: { user_id: user.id }
+      })
+
+    if (uploadError) {
+      console.error("Error subiendo cover:", uploadError)
+      throw uploadError
+    }
+
+    // Obtener URL pública
+    const { data: urlData } = supabase
+      .storage
+      .from("watchlist-covers")
+      .getPublicUrl(uploadData.path)
+
+    // El campo se llama `publicUrl`, no `publicURL`
+    return urlData.publicUrl
+  }
+
 
   const handleCreate = async () => {
     if (!user?.id) {
       setError("Debes iniciar sesión para crear una lista.")
       return
     }
-
     if (!formData.name.trim()) {
       setError("El nombre es obligatorio")
       return
     }
-
     setError("")
 
     try {
+      const cover_url = await uploadCover()
+
       const res = await fetch("/api/watchlists", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,33 +107,58 @@ export default function NewWatchlistPage() {
           description: formData.description,
           is_public: formData.is_public,
           movie_ids: selected.map((m) => m.id),
+          cover_url,
         }),
       })
-
-      const { watchlist, error } = await res.json()
-
-      if (!res.ok || error || !watchlist) {
+      const { watchlist, error: apiError } = await res.json()
+      if (!res.ok || apiError) {
         setError("Error al crear la lista")
         return
       }
-
       router.push(`/watchlists/${watchlist.id}`)
     } catch (e) {
-      setError("Error inesperado al crear la lista")
       console.error(e)
+      setError("Error inesperado al crear la lista")
     }
   }
 
   return (
     <div className="container py-8 max-w-4xl space-y-8">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Crear nueva lista</h1>
         <Button onClick={handleCreate}>
-          <Save className="h-4 w-4 mr-2" />
-          Crear lista
+          <Save className="h-4 w-4 mr-2" /> Crear lista
         </Button>
       </div>
 
+      {/* Cover Image Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Imagen de portada</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-4">
+          {coverPreview ? (
+            <Image
+              src={coverPreview}
+              alt="Preview"
+              width={600}
+              height={300}
+              className="rounded-lg object-cover"
+            />
+          ) : (
+            <Upload className="h-8 w-8 text-gray-400" />
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="block"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Info */}
       <Card>
         <CardHeader>
           <CardTitle>Información</CardTitle>
@@ -101,7 +168,9 @@ export default function NewWatchlistPage() {
             <Label>Nombre *</Label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               required
             />
           </div>
@@ -110,7 +179,9 @@ export default function NewWatchlistPage() {
             <Label>Descripción</Label>
             <Textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
             />
           </div>
 
@@ -118,17 +189,20 @@ export default function NewWatchlistPage() {
             <Label>Visibilidad</Label>
             <RadioGroup
               value={formData.is_public ? "public" : "private"}
-              onValueChange={(v) => setFormData({ ...formData, is_public: v === "public" })}
+              onValueChange={(v) =>
+                setFormData({ ...formData, is_public: v === "public" })
+              }
+              className="mt-2 space-y-2"
             >
-              <div className="flex items-center space-x-2 mt-2">
+              <div className="flex items-center gap-2">
                 <RadioGroupItem value="private" id="r1" />
-                <Label htmlFor="r1" className="flex items-center gap-2">
+                <Label htmlFor="r1" className="flex items-center gap-1">
                   <Lock className="h-4 w-4" /> Privada
                 </Label>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <RadioGroupItem value="public" id="r2" />
-                <Label htmlFor="r2" className="flex items-center gap-2">
+                <Label htmlFor="r2" className="flex items-center gap-1">
                   <Globe className="h-4 w-4" /> Pública
                 </Label>
               </div>
@@ -139,11 +213,20 @@ export default function NewWatchlistPage() {
             <Label>Etiquetas</Label>
             <div className="flex flex-wrap gap-2 mb-2">
               {formData.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="flex items-center gap-1"
+                >
                   {tag}
-                  <button onClick={() =>
-                    setFormData({ ...formData, tags: formData.tags.filter((t) => t !== tag) })
-                  }>
+                  <button
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        tags: formData.tags.filter((t) => t !== tag),
+                      })
+                    }
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -154,16 +237,15 @@ export default function NewWatchlistPage() {
                 <Input
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
+                  onKeyDown={(e) =>
+                    e.key === "Enter" &&
+                    (e.preventDefault(),
                       setFormData({
                         ...formData,
                         tags: [...formData.tags, newTag.trim()],
-                      })
-                      setNewTag("")
-                    }
-                  }}
+                      }),
+                      setNewTag(""))
+                  }
                   placeholder="Añadir etiqueta"
                 />
                 <Button
@@ -187,6 +269,7 @@ export default function NewWatchlistPage() {
         </CardContent>
       </Card>
 
+      {/* Add Movies */}
       <Card>
         <CardHeader>
           <CardTitle>Añadir películas</CardTitle>
@@ -195,7 +278,9 @@ export default function NewWatchlistPage() {
           <Tabs defaultValue="search">
             <TabsList className="grid grid-cols-2">
               <TabsTrigger value="search">Buscar películas</TabsTrigger>
-              <TabsTrigger value="selected">Seleccionadas ({selected.length})</TabsTrigger>
+              <TabsTrigger value="selected">
+                Seleccionadas ({selected.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="search" className="space-y-4">
@@ -211,26 +296,25 @@ export default function NewWatchlistPage() {
                   placeholder="Buscar películas..."
                 />
               </div>
-
               <div className="grid sm:grid-cols-2 gap-4">
-                {movies.map((movie) => (
-                  <div key={movie.id} className="flex gap-4 border p-3 rounded">
+                {movies.map((m) => (
+                  <div key={m.id} className="flex gap-4 border p-3 rounded">
                     <div className="w-12 h-16 relative">
                       <Image
-                        src={movie.image_url || "/placeholder.svg"}
-                        alt={movie.title}
+                        src={m.image_url || "/placeholder.svg"}
+                        alt={m.title}
                         fill
                         className="object-cover rounded"
                       />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium">{movie.title}</h4>
-                      <p className="text-sm text-gray-400">{movie.year}</p>
+                      <h4 className="font-medium">{m.title}</h4>
+                      <p className="text-sm text-gray-400">{m.year}</p>
                     </div>
                     <Button
                       size="sm"
-                      disabled={selected.some((m) => m.id === movie.id)}
-                      onClick={() => setSelected([...selected, movie])}
+                      disabled={selected.some((s) => s.id === m.id)}
+                      onClick={() => setSelected([...selected, m])}
                     >
                       Añadir
                     </Button>
@@ -241,27 +325,29 @@ export default function NewWatchlistPage() {
 
             <TabsContent value="selected" className="space-y-3">
               {selected.length === 0 ? (
-                <p className="text-gray-400">No has seleccionado ninguna película</p>
+                <p className="text-gray-400">
+                  No has seleccionado ninguna película
+                </p>
               ) : (
-                selected.map((movie) => (
-                  <div key={movie.id} className="flex gap-4 border p-3 rounded">
+                selected.map((m) => (
+                  <div key={m.id} className="flex gap-4 border p-3 rounded">
                     <div className="w-12 h-16 relative">
                       <Image
-                        src={movie.image_url || "/placeholder.svg"}
-                        alt={movie.title}
+                        src={m.image_url || "/placeholder.svg"}
+                        alt={m.title}
                         fill
                         className="object-cover rounded"
                       />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium">{movie.title}</h4>
-                      <p className="text-sm text-gray-400">{movie.year}</p>
+                      <h4 className="font-medium">{m.title}</h4>
+                      <p className="text-sm text-gray-400">{m.year}</p>
                     </div>
                     <Button
                       size="icon"
                       variant="outline"
                       onClick={() =>
-                        setSelected(selected.filter((m) => m.id !== movie.id))
+                        setSelected(selected.filter((s) => s.id !== m.id))
                       }
                     >
                       <X className="h-4 w-4" />

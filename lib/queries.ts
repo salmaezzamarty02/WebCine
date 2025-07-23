@@ -49,7 +49,7 @@ export async function getReviewsByMovieId(movieId: string) {
         id,
         username,
         avatar
-      )
+      ), likes_count, dislikes_count 
     `)
     .eq("movie_id", movieId)
     .order("created_at", { ascending: false })
@@ -169,7 +169,7 @@ export async function addMovieToWatchlist({
   }
 
   return data
-}  
+}
 
 // Marcar película como vista
 export async function markMovieAsWatched({
@@ -233,4 +233,48 @@ export async function isMovieWatchedByUser({
   }
 
   return !!data
+}
+
+// Incrementa likes de forma atómica en el cliente
+export async function incrementReviewLike(reviewId: string, current: number) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .update({ likes_count: current + 1 })
+    .eq("id", reviewId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Error incrementando like:", error)
+    throw error
+  }
+  return data
+}
+
+export async function incrementReviewDislike(reviewId: string, current: number) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .update({ dislikes_count: current + 1 })
+    .eq("id", reviewId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Error incrementando dislike:", error)
+    throw error
+  }
+  return data
+}
+
+
+export async function deleteReview(reviewId: string) {
+  const { error } = await supabase
+    .from("reviews")
+    .delete()
+    .eq("id", reviewId)
+  if (error) {
+    console.error("Error borrando reseña:", error)
+    throw error
+  }
+  return true
 }

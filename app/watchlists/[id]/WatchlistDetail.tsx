@@ -38,7 +38,7 @@ export function WatchlistDetail({ watchlist }: { watchlist: any }) {
       <div className="relative h-[30vh] md:h-[40vh]">
         <div className="absolute inset-0">
           <Image
-            src={watchlist.coverimage || "/placeholder.svg"}
+            src={watchlist.cover_url || "/placeholder.svg"}
             alt={watchlist.name}
             fill
             className="object-cover"
@@ -84,7 +84,25 @@ export function WatchlistDetail({ watchlist }: { watchlist: any }) {
                     <DropdownMenuItem>Duplicar lista</DropdownMenuItem>
                     <DropdownMenuItem>Exportar</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-red-500">
+                    <DropdownMenuItem
+                      className="text-red-500"
+                      onClick={async () => {
+                        const confirmed = window.confirm("¿Estás segura de que quieres eliminar esta lista?")
+                        if (!confirmed) return
+
+                        const res = await fetch(`/api/watchlists/${watchlist.id}`, {
+                          method: "DELETE"
+                        })
+
+                        if (res.ok) {
+                          alert("Lista eliminada con éxito")
+                          window.location.href = "/watchlists" // o redirige a donde prefieras
+                        } else {
+                          const err = await res.json()
+                          alert(`Error al eliminar: ${err.error}`)
+                        }
+                      }}
+                    >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Eliminar lista
                     </DropdownMenuItem>

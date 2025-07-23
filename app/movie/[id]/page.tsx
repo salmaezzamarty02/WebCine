@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, Share, Bookmark, Eye } from "lucide-react"
+import { Star, Share, Bookmark, Eye, Heart, ThumbsDown, Trash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -20,7 +20,10 @@ import {
   addReview,
   markMovieAsWatched,
   unmarkMovieAsWatched,
-  isMovieWatchedByUser
+  isMovieWatchedByUser,
+  incrementReviewLike,
+  incrementReviewDislike,
+  deleteReview
 } from "@/lib/queries"
 
 import { useAuth } from "@/context/auth-provider"
@@ -105,6 +108,39 @@ export default function MoviePage() {
     } catch (err) {
       console.error("Error al publicar reseña:", err)
       alert("Error al publicar reseña")
+    }
+  }
+
+  const handleLike = async (review: any) => {
+    try {
+      const updated = await incrementReviewLike(review.id, review.likes_count)
+      setReviews(rs =>
+        rs.map(r => (r.id === updated.id ? updated : r))
+      )
+    } catch (e) {
+      alert("No se ha podido dar like")
+    }
+  }
+
+  const handleDislike = async (review: any) => {
+    try {
+      const updated = await incrementReviewDislike(review.id, review.dislikes_count)
+      setReviews(rs =>
+        rs.map(r => (r.id === updated.id ? updated : r))
+      )
+    } catch (e) {
+      alert("No se ha podido dar dislike")
+    }
+  }
+
+  const handleDelete = async (review: any) => {
+    if (!confirm("¿Seguro que quieres eliminar tu reseña?")) return
+    try {
+      await deleteReview(review.id)
+      // quita del estado
+      setReviews(rs => rs.filter(r => r.id !== review.id))
+    } catch {
+      alert("No se pudo eliminar la reseña")
     }
   }
 
@@ -194,10 +230,37 @@ export default function MoviePage() {
                   <h2 className="text-xl font-bold mb-2">Sinopsis</h2>
                   <p className="text-gray-300">{movie.description || "Sin descripción disponible."}</p>
                 </div>
+
                 {movie.director && (
                   <div>
                     <h2 className="text-xl font-bold mb-2">Director</h2>
                     <p className="text-gray-300">{movie.director}</p>
+                  </div>
+                )}
+
+                {movie.cast && movie.cast.length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-bold mb-4">Reparto</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {movie.cast.map((actor: { name: string; character: string }, idx: number) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            {/* usa iniciales si no tienes avatar */}
+                            <AvatarFallback>
+                              {actor.name
+                                .split(" ")
+                                .map(n => n[0])
+                                .join("")
+                                .toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-white">{actor.name}</p>
+                            <p className="text-sm text-gray-400">como {actor.character}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </TabsContent>
@@ -256,6 +319,53 @@ export default function MoviePage() {
                         </div>
                       </div>
                       <p className="text-gray-300">{review.content}</p>
+                      {/* Likes y Dislikes */}
+                      <div className="flex items-center gap-4 mt-4">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Me gusta"
+                          onClick={() => handleLike(review)}
+                          className={`
+    transition-colors
+    ${review.likes_count > 0
+                              ? "text-red-500 hover:text-red-600"
+                              : "text-gray-400 hover:text-red-500"
+                            }
+  `}
+                        >
+                          <Heart className="h-5 w-5" />
+                          <span className="ml-1 text-sm">{review.likes_count}</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="No me gusta"
+                          onClick={() => handleDislike(review)}
+                          className={`
+    transition-colors
+    ${review.dislikes_count > 0
+                              ? "text-blue-500 hover:text-blue-600"
+                              : "text-gray-400 hover:text-blue-500"
+                            }
+  `}
+                        >
+                          <ThumbsDown className="h-5 w-5" />
+                          <span className="ml-1 text-sm">{review.dislikes_count}</span>
+                        </Button>
+                        {profile?.id === review.user_id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Eliminar reseña"
+                            onClick={() => handleDelete(review)}
+                            className="text-gray-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash className="h-5 w-5" />
+                          </Button>
+                        )}
+
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -282,7 +392,6 @@ export default function MoviePage() {
           </div>
         </div>
       </div>
-      
     </div>
   )
 }
