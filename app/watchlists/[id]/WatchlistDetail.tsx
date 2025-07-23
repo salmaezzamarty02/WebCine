@@ -4,6 +4,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -32,6 +33,7 @@ import Image from "next/image"
 import Link from "next/link"
 
 export function WatchlistDetail({ watchlist }: { watchlist: any }) {
+  const router = useRouter()
   return (
     <div>
       {/* Hero */}
@@ -66,9 +68,11 @@ export function WatchlistDetail({ watchlist }: { watchlist: any }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4 mr-1" />
-                  Editar
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/watchlists/${watchlist.id}/edit`}>
+                    <Edit className="h-4 w-4 mr-1" />
+                    Editar
+                  </Link>
                 </Button>
                 <Button variant="outline" size="sm">
                   <Share className="h-4 w-4 mr-1" />
@@ -81,7 +85,61 @@ export function WatchlistDetail({ watchlist }: { watchlist: any }) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>Duplicar lista</DropdownMenuItem>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/watchlists/${watchlist.id}/duplicate`, {
+                                method: "POST",
+                              })
+
+                              const data = await res.json()
+
+                              if (res.ok && data.id) {
+                                router.push(`/watchlists/${data.id}`)
+                              } else {
+                                alert("❌ Error al duplicar la lista: " + (data.error || "Desconocido"))
+                              }
+                            } catch (err) {
+                              console.error("Error duplicando lista:", err)
+                              alert("❌ Error inesperado al duplicar la lista.")
+                            }
+                          }}
+                        >
+                          Duplicar lista
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>Exportar</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-red-500"
+                          onClick={async () => {
+                            const confirmed = window.confirm("¿Estás segura de que quieres eliminar esta lista?")
+                            if (!confirmed) return
+
+                            const res = await fetch(`/api/watchlists/${watchlist.id}`, {
+                              method: "DELETE"
+                            })
+
+                            if (res.ok) {
+                              alert("Lista eliminada con éxito")
+                              window.location.href = "/watchlists"
+                            } else {
+                              const err = await res.json()
+                              alert(`Error al eliminar: ${err.error}`)
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Eliminar lista
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <DropdownMenuItem>Exportar</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem

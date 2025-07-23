@@ -26,7 +26,17 @@ export default function WatchlistClient() {
     const fetchWatchlists = async () => {
       const { data, error } = await supabase
         .from("watchlists")
-        .select("*")
+        .select(`
+          id,
+          name,
+          description,
+          created_at,
+          is_public,
+          cover_url,
+          watchlist_movies (
+            id
+          )
+        `)
         .eq("user_id", user.id)
 
       if (!error) setWatchlists(data || [])
@@ -47,18 +57,18 @@ export default function WatchlistClient() {
           <Link href={`/watchlists/${list.id}`} className="block">
             <div className="h-40 relative">
               <Image
-                src={list.coverimage || "/placeholder.svg?height=300&width=600&text=Watchlist"}
+                src={list.cover_url || "/placeholder.svg?height=300&width=600&text=Watchlist"}
                 alt={list.name}
                 fill
                 className="object-cover transition-transform group-hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
               <div className="absolute bottom-3 right-3 flex items-center">
                 <div className="bg-black/70 rounded-full p-1.5">
-                  {list.privacy === "private" ? (
-                    <Lock className="h-4 w-4" />
-                  ) : (
+                  {list.is_public ? (
                     <Globe className="h-4 w-4" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
                   )}
                 </div>
               </div>
@@ -91,7 +101,9 @@ export default function WatchlistClient() {
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-800">
               <div className="flex items-center">
                 <Film className="h-4 w-4 mr-1 text-gray-400" />
-                <span className="text-sm text-gray-400">{/* Aquí podrías poner el conteo de películas si lo calculas */}0 películas</span>
+                <span className="text-sm text-gray-400">
+                  {list.watchlist_movies?.length || 0} películas
+                </span>
               </div>
               <span className="text-xs text-gray-500">
                 {new Date(list.created_at).toLocaleDateString("es-ES", {
