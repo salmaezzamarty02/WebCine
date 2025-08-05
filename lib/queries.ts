@@ -278,3 +278,129 @@ export async function deleteReview(reviewId: string) {
   }
   return true
 }
+
+
+
+// Obtener todas las categorías del foro
+export async function getForumCategories() {
+  const { data, error } = await supabase
+    .from("forum_categories")
+    .select("*")
+    .order("name", { ascending: true })
+
+  if (error) {
+    console.error("❌ Error al obtener categorías del foro:", error.message)
+    return []
+  }
+
+  return data
+}
+
+
+export async function getThreadById(id: string) {
+  const { data, error } = await supabase
+    .from("forum_threads")
+    .select(`
+      id,
+      title,
+      content,
+      created_at,
+      category_id,
+      forum_categories:forum_categories!forum_threads_category_id_fkey (
+        name
+      ),
+      user:profiles!forum_threads_user_profile_fkey (
+        id,
+        username,
+        avatar,
+        created_at
+      ),
+      forum_comments (
+        id,
+        content,
+        created_at,
+        user_id,
+        user:profiles!forum_comments_user_profile_fkey (
+          id,
+          username,
+          avatar,
+          created_at
+        )
+      ),
+      forum_tags (
+        id,
+        name
+      )
+    `)
+    .eq("id", id)
+    .single()
+
+  if (error) {
+    console.error("❌ Error al obtener hilo:", error.message)
+    return null
+  }
+
+  return data
+}
+
+export async function addForumComment({ thread_id, user_id, content }: {
+  thread_id: string
+  user_id: string
+  content: string
+}) {
+  const { data, error } = await supabase
+    .from('forum_comments')
+    .insert({
+      thread_id,
+      user_id,
+      content,
+    })
+
+  if (error) throw new Error(error.message)
+}
+
+
+export async function getCommentsByEventId(eventId: string) {
+  const { data, error } = await supabase
+    .from("event_comments")
+    .select(`
+      id,
+      text,
+      created_at,
+      user:user_id (id, username, avatar),
+      replies:event_comment_replies (
+        id,
+        text,
+        created_at,
+        user:user_id (id, username, avatar)
+      )
+    `)
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+  return data
+}
+
+
+export async function addCommentToEvent(eventId: string, userId: string, text: string) {
+  const { data, error } = await supabase
+    .from("event_comments")
+    .insert([{ event_id: eventId, user_id: userId, text }])
+    .select("*")
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function addReplyToComment(commentId: string, userId: string, text: string) {
+  const { data, error } = await supabase
+    .from("event_comment_replies")
+    .insert([{ comment_id: commentId, user_id: userId, text }])
+    .select("*")
+    .single()
+
+  if (error) throw error
+  return data
+}

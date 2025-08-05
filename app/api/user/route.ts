@@ -1,3 +1,4 @@
+//APP/API/USER/ROUTE.TS
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabaseClient"

@@ -144,7 +144,7 @@ export default function LoginPage() {
             <div className="h-full w-full">
               <div
                 className="h-full w-full bg-cover bg-center"
-                style={{ backgroundImage: "url('/placeholder.svg?height=1080&width=1920')" }}
+                style={{ backgroundImage: "url('/login.jpg?height=1080&width=1920')" }}
               ></div>
             </div>
           </div>

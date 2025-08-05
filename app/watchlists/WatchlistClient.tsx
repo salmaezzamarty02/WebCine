@@ -57,7 +57,11 @@ export default function WatchlistClient() {
           <Link href={`/watchlists/${list.id}`} className="block">
             <div className="h-40 relative">
               <Image
-                src={list.cover_url || "/placeholder.svg?height=300&width=600&text=Watchlist"}
+                src={
+                  list.cover_url && list.cover_url.trim() !== ""
+                    ? list.cover_url
+                    : "/cover.png"
+                }
                 alt={list.name}
                 fill
                 className="object-cover transition-transform group-hover:scale-105"
