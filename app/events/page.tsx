@@ -121,7 +121,7 @@ export default function EventsPage() {
           </div>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Crear evento
+            Solicitar creación de evento
           </Button>
         </div>
       </div>

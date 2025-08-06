@@ -10,7 +10,7 @@ import { Plus, Trash } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 import useUser from "@/lib/useUser"
 
-interface EventForm {
+interface EventRequestForm {
   title: string
   description: string
   longDescription: string
@@ -27,12 +27,12 @@ interface ScheduleItem {
   activity: string
 }
 
-export default function CreateEventPage() {
+export default function RequestEventPage() {
   const router = useRouter()
   const user = useUser()
   const [loading, setLoading] = useState(false)
 
-  const [form, setForm] = useState<EventForm>({
+  const [form, setForm] = useState<EventRequestForm>({
     title: "",
     description: "",
     longDescription: "",
@@ -111,8 +111,8 @@ export default function CreateEventPage() {
 
     const imageUrl = await uploadImage()
 
-    const { data: event, error } = await supabase
-      .from("events")
+    const { data: request, error } = await supabase
+      .from("event_requests")
       .insert({
         user_id: user.id,
         title: form.title,
@@ -125,30 +125,35 @@ export default function CreateEventPage() {
         price: form.price,
         image_url: imageUrl,
         max_attendees: parseInt(form.maxAttendees || "0"),
+        status: "pending"
       })
       .select("id")
       .single()
 
-    if (error || !event) {
-      console.error("Error creando evento", error)
+    if (error || !request) {
+      console.error("Error enviando solicitud", error)
       setLoading(false)
       return
     }
 
     const scheduleInserts = schedule
       .filter((s) => s.time && s.activity)
-      .map((s) => ({ event_id: event.id, time_range: s.time, activity: s.activity }))
+      .map((s) => ({
+        request_id: request.id,
+        time_range: s.time,
+        activity: s.activity
+      }))
 
     if (scheduleInserts.length > 0) {
-      await supabase.from("event_schedule").insert(scheduleInserts)
+      await supabase.from("event_request_schedule").insert(scheduleInserts)
     }
 
-    router.push(`/events/${event.id}`)
+    router.push("/events?solicitud=enviada")
   }
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-bold">Crear nuevo evento</h1>
+      <h1 className="text-2xl font-bold">Solicitar creación de evento</h1>
 
       {Object.entries({
         title: "Título",
@@ -164,9 +169,9 @@ export default function CreateEventPage() {
         <div key={key}>
           <Label htmlFor={key}>{label}</Label>
           {(key === "description" || key === "longDescription") ? (
-            <Textarea id={key} name={key} value={form[key as keyof EventForm]} onChange={handleChange} required />
+            <Textarea id={key} name={key} value={form[key as keyof EventRequestForm]} onChange={handleChange} required />
           ) : (
-            <Input id={key} name={key} value={form[key as keyof EventForm]} onChange={handleChange} required />
+            <Input id={key} name={key} value={form[key as keyof EventRequestForm]} onChange={handleChange} required />
           )}
         </div>
       ))}
@@ -208,7 +213,7 @@ export default function CreateEventPage() {
       </div>
 
       <Button type="submit" disabled={loading}>
-        {loading ? "Creando..." : "Crear evento"}
+        {loading ? "Enviando..." : "Enviar solicitud"}
       </Button>
     </form>
   )

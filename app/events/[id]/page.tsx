@@ -2,8 +2,11 @@
 "use client"
 
 import { useParams } from "next/navigation"
+import useUser from "@/lib/useUser"
+import { Textarea } from "@/components/ui/textarea"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabaseClient"
+import { getEventCommentsById } from "@/lib/queries"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -17,6 +20,10 @@ export default function EventPage() {
 
   const [event, setEvent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const userData = useUser()
+  const user = userData?.user ?? null
+  const [newComment, setNewComment] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -24,7 +31,7 @@ export default function EventPage() {
     const fetchEvent = async () => {
       const { data: eventData, error } = await supabase
         .from("events")
-        .select(`*, schedule:event_schedule(time_range, activity), attendees:event_attendees(user_id), comments:event_comments(id, text, created_at, user_id, replies:event_comment_replies(id, text, created_at, user_id))`)
+        .select(`*, schedule:event_schedule(time_range, activity), attendees:event_attendees(user_id)`)
         .eq("id", id)
         .single()
 
@@ -34,23 +41,14 @@ export default function EventPage() {
         return
       }
 
+      const comments = await getEventCommentsById(id)
+      eventData.comments = comments || []
+
       const { data: user } = await supabase
         .from("profiles")
         .select("id, name, avatar")
         .eq("id", eventData.user_id)
         .single()
-
-      const fetchUser = async (userId: string) => {
-        const { data } = await supabase.from("profiles").select("id, name, avatar").eq("id", userId).single()
-        return data
-      }
-
-      for (const comment of eventData.comments) {
-        comment.user = await fetchUser(comment.user_id)
-        for (const reply of comment.replies) {
-          reply.user = await fetchUser(reply.user_id)
-        }
-      }
 
       setEvent({ ...eventData, user })
       setLoading(false)
@@ -58,6 +56,37 @@ export default function EventPage() {
 
     fetchEvent()
   }, [id])
+
+
+
+  const handleSubmitComment = async () => {
+    if (!newComment.trim() || !user) return
+    setSubmitting(true)
+
+    const { data, error } = await supabase
+      .from("event_comments")
+      .insert([{ event_id: id, user_id: user.id, text: newComment }])
+      .select("id, text, created_at")
+      .single()
+
+    if (error) {
+      console.error("Error al enviar comentario:", error)
+    } else {
+      const newCommentObj = {
+        ...data,
+        user: {
+          id: user.id,
+          name: user?.user_metadata?.name || "Usuario",
+          avatar: user.user_metadata.avatar || null
+        },
+        replies: []
+      }
+      setEvent((prev: any) => ({ ...prev, comments: [newCommentObj, ...prev.comments] }))
+      setNewComment("")
+    }
+    setSubmitting(false)
+  }
+
 
   if (!id) return <div className="text-gray-400">Cargando ID del evento...</div>
   if (loading) return <div className="text-gray-400">Cargando evento...</div>
@@ -171,39 +200,77 @@ export default function EventPage() {
 
             <div className="mb-8">
               <h2 className="text-xl font-bold mb-4">Comentarios ({event.comments.length})</h2>
+
+              {/* Formulario de nuevo comentario */}
+              {true ? (
+                <div className="rounded-lg border border-gray-800 p-4 mb-6">
+                  <h3 className="font-medium mb-4">Escribe un comentario</h3>
+                  <Textarea
+                    placeholder="Escribe tu comentario..."
+                    className="mb-4 min-h-[120px]"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                  />
+                  <div className="flex justify-end">
+                    <Button onClick={handleSubmitComment} disabled={!newComment.trim() || submitting}>
+                      {submitting ? "Enviando..." : "Publicar comentario"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-400 italic">Inicia sesión para dejar un comentario.</p>
+              )}
+
+              {/* Comentarios existentes */}
               <div className="space-y-6">
                 {event.comments.map((comment: any) => (
-                  <div key={comment.id} className="space-y-4">
-                    <div className="flex items-start gap-3">
+                  <div key={comment.id} className="rounded-lg border border-gray-800 p-4">
+                    <div className="flex gap-4 items-start">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={comment.user.avatar} alt={comment.user.name} />
-                        <AvatarFallback>{comment.user.name.split(" ").map((n: string) => n[0]).join("")}</AvatarFallback>
+                        <AvatarImage src={comment.user?.avatar || "/placeholder.svg"} />
+                        <AvatarFallback>
+                          {comment.user?.name?.[0] || "?"}
+                        </AvatarFallback>
                       </Avatar>
+
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Link href={`/profile/${comment.user.id}`} className="font-medium hover:underline">
-                            {comment.user.name}
-                          </Link>
-                          <span className="text-xs text-gray-400">{new Date(comment.created_at).toLocaleDateString()}</span>
+                        <div className="text-sm text-gray-400 mb-1">
+                          {comment.user?.name ? (
+                            <Link href={`/profile/${comment.user.id}`} className="font-medium text-white hover:underline">
+                              {comment.user.name}
+                            </Link>
+                          ) : (
+                            <span className="italic text-gray-400">Anónimo</span>
+                          )}
+                          {" • "}
+                          {new Date(comment.created_at).toLocaleDateString()}
                         </div>
-                        <p className="text-gray-200">{comment.text}</p>
+                        <p className="text-gray-200 whitespace-pre-line">{comment.text}</p>
                       </div>
                     </div>
 
+                    {/* Respuestas */}
                     {comment.replies.length > 0 && (
-                      <div className="pl-12 space-y-4">
+                      <div className="pl-12 space-y-4 mt-4">
                         {comment.replies.map((reply: any) => (
-                          <div key={reply.id} className="flex items-start gap-3">
+                          <div key={reply.id} className="flex gap-3 items-start">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={reply.user.avatar} alt={reply.user.name} />
-                              <AvatarFallback>{reply.user.name.split(" ").map((n: string) => n[0]).join("")}</AvatarFallback>
+                              <AvatarImage src={reply.user?.avatar || "/placeholder.svg"} />
+                              <AvatarFallback>
+                                {reply.user?.name?.[0] || "?"}
+                              </AvatarFallback>
                             </Avatar>
                             <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <Link href={`/profile/${reply.user.id}`} className="font-medium hover:underline">
-                                  {reply.user.name}
-                                </Link>
-                                <span className="text-xs text-gray-400">{new Date(reply.created_at).toLocaleDateString()}</span>
+                              <div className="text-sm text-gray-400 mb-1">
+                                {reply.user?.name ? (
+                                  <Link href={`/profile/${reply.user.id}`} className="font-medium text-white hover:underline">
+                                    {reply.user.name}
+                                  </Link>
+                                ) : (
+                                  <span className="italic text-gray-400">Anónimo</span>
+                                )}
+                                {" • "}
+                                {new Date(reply.created_at).toLocaleDateString()}
                               </div>
                               <p className="text-gray-200">{reply.text}</p>
                             </div>

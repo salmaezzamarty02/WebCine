@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, ChangeEvent, FormEvent } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState, ChangeEvent, FormEvent } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,6 +20,7 @@ interface EventForm {
   address: string
   price: string
   maxAttendees: string
+  imageUrl: string
 }
 
 interface ScheduleItem {
@@ -27,11 +28,11 @@ interface ScheduleItem {
   activity: string
 }
 
-export default function CreateEventPage() {
+export default function EditEventPage() {
   const router = useRouter()
+  const params = useParams() as { id: string }
   const user = useUser()
   const [loading, setLoading] = useState(false)
-
   const [form, setForm] = useState<EventForm>({
     title: "",
     description: "",
@@ -42,23 +43,58 @@ export default function CreateEventPage() {
     address: "",
     price: "",
     maxAttendees: "",
+    imageUrl: ""
   })
-
   const [schedule, setSchedule] = useState<ScheduleItem[]>([{ time: "", activity: "" }])
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string>("")
+  const [initialLoading, setInitialLoading] = useState(true)
+
+  useEffect(() => {
+    const loadEvent = async () => {
+      const { data: event, error: eventError } = await supabase
+        .from("events")
+        .select("*")
+        .eq("id", params.id)
+        .single()
+
+      const { data: eventSchedule, error: scheduleError } = await supabase
+        .from("event_schedule")
+        .select("*")
+        .eq("event_id", params.id)
+
+      if (eventError || !event) {
+        console.error("Error cargando evento", eventError)
+        return
+      }
+
+      setForm({
+        title: event.title || "",
+        description: event.description || "",
+        longDescription: event.long_description || "",
+        date: event.date || "",
+        timeRange: event.time_range || "",
+        location: event.location || "",
+        address: event.address || "",
+        price: event.price || "",
+        maxAttendees: event.max_attendees?.toString() || "",
+        imageUrl: event.image_url || ""
+      })
+
+      setSchedule(
+        eventSchedule?.map((item) => ({
+          time: item.time_range,
+          activity: item.activity
+        })) || [{ time: "", activity: "" }]
+      )
+
+      setInitialLoading(false)
+    }
+
+    loadEvent()
+  }, [params.id])
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setForm({ ...form, [name]: value })
-  }
-
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null
-    if (file) {
-      setImageFile(file)
-      setImagePreview(URL.createObjectURL(file))
-    }
   }
 
   const handleScheduleChange = (index: number, field: keyof ScheduleItem, value: string) => {
@@ -77,44 +113,16 @@ export default function CreateEventPage() {
     setSchedule(newSchedule)
   }
 
-  const uploadImage = async (): Promise<string | null> => {
-    if (!imageFile || !user) return null
-
-    const ext = imageFile.name.split(".").pop()
-    const filename = `${crypto.randomUUID()}.${ext}`
-
-    const { data, error } = await supabase.storage
-      .from("event-covers")
-      .upload(filename, imageFile, {
-        cacheControl: "3600",
-        upsert: false,
-        metadata: { user_id: user.id }
-      })
-
-    if (error) {
-      console.error("Error subiendo imagen:", error)
-      return null
-    }
-
-    const { data: urlData } = supabase.storage
-      .from("event-covers")
-      .getPublicUrl(data.path)
-
-    return urlData?.publicUrl ?? null
-  }
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!user) return
 
     setLoading(true)
 
-    const imageUrl = await uploadImage()
-
-    const { data: event, error } = await supabase
+    // 1. Actualizar el evento
+    const { error: updateError } = await supabase
       .from("events")
-      .insert({
-        user_id: user.id,
+      .update({
         title: form.title,
         description: form.description,
         long_description: form.longDescription,
@@ -123,32 +131,41 @@ export default function CreateEventPage() {
         location: form.location,
         address: form.address,
         price: form.price,
-        image_url: imageUrl,
-        max_attendees: parseInt(form.maxAttendees || "0"),
+        image_url: form.imageUrl,
+        max_attendees: parseInt(form.maxAttendees || "0")
       })
-      .select("id")
-      .single()
+      .eq("id", params.id)
 
-    if (error || !event) {
-      console.error("Error creando evento", error)
+    if (updateError) {
+      console.error("Error actualizando evento", updateError)
       setLoading(false)
       return
     }
 
-    const scheduleInserts = schedule
-      .filter((s) => s.time && s.activity)
-      .map((s) => ({ event_id: event.id, time_range: s.time, activity: s.activity }))
+    // 2. Borrar bloques anteriores del programa
+    await supabase.from("event_schedule").delete().eq("event_id", params.id)
 
-    if (scheduleInserts.length > 0) {
-      await supabase.from("event_schedule").insert(scheduleInserts)
+    // 3. Insertar los nuevos bloques
+    const scheduleToInsert = schedule
+      .filter((s) => s.time && s.activity)
+      .map((s) => ({
+        event_id: params.id,
+        time_range: s.time,
+        activity: s.activity
+      }))
+
+    if (scheduleToInsert.length > 0) {
+      await supabase.from("event_schedule").insert(scheduleToInsert)
     }
 
-    router.push(`/events/${event.id}`)
+    router.push(`/events/${params.id}`)
   }
+
+  if (initialLoading) return <p className="text-center mt-10">Cargando evento...</p>
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-bold">Crear nuevo evento</h1>
+      <h1 className="text-2xl font-bold">Editar evento</h1>
 
       {Object.entries({
         title: "Título",
@@ -159,28 +176,31 @@ export default function CreateEventPage() {
         location: "Lugar",
         address: "Dirección",
         price: "Precio",
-        maxAttendees: "Máximo de asistentes"
+        maxAttendees: "Máximo de asistentes",
+        imageUrl: "URL de la imagen de portada"
       }).map(([key, label]) => (
         <div key={key}>
           <Label htmlFor={key}>{label}</Label>
           {(key === "description" || key === "longDescription") ? (
-            <Textarea id={key} name={key} value={form[key as keyof EventForm]} onChange={handleChange} required />
+            <Textarea
+              id={key}
+              name={key}
+              value={form[key as keyof EventForm]}
+              onChange={handleChange}
+              required
+            />
           ) : (
-            <Input id={key} name={key} value={form[key as keyof EventForm]} onChange={handleChange} required />
+            <Input
+              id={key}
+              name={key}
+              value={form[key as keyof EventForm]}
+              onChange={handleChange}
+              required
+            />
           )}
         </div>
       ))}
 
-      {/* Imagen */}
-      <div>
-        <Label>Imagen de portada</Label>
-        {imagePreview && (
-          <img src={imagePreview} alt="Preview" className="rounded-md mb-2 w-full h-48 object-cover" />
-        )}
-        <Input type="file" accept="image/*" onChange={handleImageChange} required />
-      </div>
-
-      {/* Programa */}
       <div>
         <Label>Programa del evento</Label>
         <div className="space-y-4 mt-2">
@@ -208,7 +228,7 @@ export default function CreateEventPage() {
       </div>
 
       <Button type="submit" disabled={loading}>
-        {loading ? "Creando..." : "Crear evento"}
+        {loading ? "Guardando..." : "Guardar cambios"}
       </Button>
     </form>
   )

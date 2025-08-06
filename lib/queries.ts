@@ -358,21 +358,27 @@ export async function addForumComment({ thread_id, user_id, content }: {
 
   if (error) throw new Error(error.message)
 }
-
-
-export async function getCommentsByEventId(eventId: string) {
+export async function getEventCommentsById(eventId: string) {
   const { data, error } = await supabase
     .from("event_comments")
     .select(`
       id,
       text,
       created_at,
-      user:user_id (id, username, avatar),
+      user:user_id (
+        id,
+        username,
+        avatar
+      ),
       replies:event_comment_replies (
         id,
         text,
         created_at,
-        user:user_id (id, username, avatar)
+        user:user_id (
+          id,
+          username,
+          avatar
+        )
       )
     `)
     .eq("event_id", eventId)
@@ -382,8 +388,7 @@ export async function getCommentsByEventId(eventId: string) {
   return data
 }
 
-
-export async function addCommentToEvent(eventId: string, userId: string, text: string) {
+export async function addEventComment(eventId: string, userId: string, text: string) {
   const { data, error } = await supabase
     .from("event_comments")
     .insert([{ event_id: eventId, user_id: userId, text }])
@@ -394,7 +399,7 @@ export async function addCommentToEvent(eventId: string, userId: string, text: s
   return data
 }
 
-export async function addReplyToComment(commentId: string, userId: string, text: string) {
+export async function addEventCommentReply(commentId: string, userId: string, text: string) {
   const { data, error } = await supabase
     .from("event_comment_replies")
     .insert([{ comment_id: commentId, user_id: userId, text }])
