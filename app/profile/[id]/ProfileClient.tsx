@@ -240,7 +240,7 @@ export default function ProfileClient({ profile }: { profile: any }) {
                   >
                     <div className="h-32 relative">
                       <Image
-                        src={list.coverimage || "/placeholder.svg"}
+                        src={list.cover_url || "/placeholder.svg"}
                         alt={list.name}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform"

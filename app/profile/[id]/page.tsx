@@ -1,4 +1,4 @@
-//page/id/page.tsx
+//profile/id/page.tsx
 import { createClient } from "@/lib/supabaseServer"
 import ProfileClient from "./ProfileClient"
 

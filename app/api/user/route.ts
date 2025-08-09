@@ -46,7 +46,7 @@ export async function PATCH(req: Request) {
 
   const body = await req.json()
 
-  const { name, username, bio, avatar, location, website, email } = body
+  const { name, username, bio, avatar, location, website, email, coverimage } = body
 
   const { error: updateError } = await supabase
     .from("profiles")
@@ -58,6 +58,7 @@ export async function PATCH(req: Request) {
       location,
       website,
       email,
+      coverimage,
     })
     .eq("id", user.id)
 
