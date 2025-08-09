@@ -1,5 +1,23 @@
 import { supabase } from "./supabaseClient"
 
+export interface UserSuggestion {
+  id: string
+  username: string
+  name: string  
+  avatar: string | null
+  moviesWatched: number
+  mutualFriends: number
+}
+
+export interface FriendRequest {
+  friendshipId: string   // id de la fila en friendships (para update/reject)
+  userId: string         // id del solicitante (para perfil, avatar…)
+  username: string
+  name: string
+  avatar: string | null
+  moviesWatched: number
+}
+
 // Obtener todas las películas ordenadas por año
 export async function getAllMovies() {
   const { data, error } = await supabase
@@ -408,4 +426,139 @@ export async function addEventCommentReply(commentId: string, userId: string, te
 
   if (error) throw error
   return data
+}
+
+
+export async function getFriends(userId: string) {
+  const { data, error } = await supabase
+    .from("friendships")
+    .select(`
+      id, status, created_at,
+      requester:profiles!fk_requester_profiles(id, username, name, avatar),
+      addressee:profiles!fk_addressee_profiles(id, username, name, avatar)
+    `)
+    .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
+    .eq("status", "accepted")
+
+  if (error) throw error
+
+  return (data || []).map((f: any) => {
+    const friend = f.requester?.id === userId ? f.addressee : f.requester
+    return friend
+  })
+}
+
+// export async function getFriendRequests(userId: string) {
+//   const { data, error } = await supabase
+//     .from("friendships")
+//     .select("*, requester:requester_id(*)")
+//     .eq("addressee_id", userId)
+//     .eq("status", "pending")
+
+//   if (error) throw error
+//   return data
+// }
+
+
+export async function getFriendRequests(userId: string): Promise<FriendRequest[]> {
+  const { data, error } = await supabase
+    .from("friendships")
+    .select(`
+      id,
+      requester:profiles!fk_requester_profiles(id, username, name, avatar)
+    `)
+    .eq("addressee_id", userId)
+    .eq("status", "pending")
+
+  if (error) throw error
+
+  return (data || []).map((row: any) => ({
+    friendshipId: row.id,
+    userId: row.requester?.id ?? "unknown",
+    username: row.requester?.username ?? "unknown",
+    name: row.requester?.name ?? "Desconocido",
+    avatar: row.requester?.avatar ?? null,
+    moviesWatched: 0,
+  }))
+}
+
+
+
+
+
+export async function sendFriendRequest(fromId: string, toId: string) {
+  if (fromId === toId) throw new Error("No puede enviarse solicitud a sí mismo.")
+
+  const { data, error } = await supabase
+    .from("friendships")
+    .insert([{ requester_id: fromId, addressee_id: toId, status: "pending" }])
+
+  // Si salta error de unicidad, informe claro:
+  if (error?.code === "23505") {
+    throw new Error("Ya existe una relación entre estos usuarios.")
+  }
+  if (error) throw error
+  return data
+}
+
+export async function updateFriendRequest(id: string, status: "accepted" | "rejected") {
+  const { data, error } = await supabase
+    .from("friendships")
+    .update({ status })
+    .eq("id", id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function getFriendSuggestions(currentUserId: string): Promise<UserSuggestion[]> {
+  // 1. Obtener relaciones existentes
+  const { data: existingRelations, error: errorRelations } = await supabase
+    .from("friendships")
+    .select("requester_id, addressee_id, status")
+    .or(`requester_id.eq.${currentUserId},addressee_id.eq.${currentUserId}`)
+    .in("status", ["pending", "accepted"])
+
+  if (errorRelations) throw errorRelations
+
+  const excludedIds = new Set<string>()
+  for (const rel of existingRelations || []) {
+    if (rel.requester_id !== currentUserId) excludedIds.add(rel.requester_id)
+    if (rel.addressee_id !== currentUserId) excludedIds.add(rel.addressee_id)
+  }
+  excludedIds.add(currentUserId)
+
+  // 2. Buscar perfiles no relacionados
+  const { data: suggestions, error: errorSuggestions } = await supabase
+    .from("profiles")
+    .select("id, username, name, avatar")
+    .not("id", "in", `(${Array.from(excludedIds).join(",")})`)
+    .limit(10)
+
+  if (errorSuggestions) throw errorSuggestions
+
+  // 3. Enriquecer los datos con películas vistas y amigos en común
+  const enriched = await Promise.all(
+    suggestions.map(async (user) => {
+      // Count watched movies
+      const { count: watchedCount } = await supabase
+        .from("watched_movies")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+
+      // Get mutual friends
+      const { data: mutuals } = await supabase
+        .rpc("get_mutual_friends", { user_a: currentUserId, user_b: user.id })
+
+      return {
+        ...user,
+        moviesWatched: watchedCount ?? 0,
+        mutualFriends: mutuals?.length ?? 0,
+      }
+    })
+  )
+
+  return enriched
 }

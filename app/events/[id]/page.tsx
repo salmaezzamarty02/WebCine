@@ -1,4 +1,3 @@
-//app/events/[id]/page.tsx
 "use client"
 
 import { useParams } from "next/navigation"
@@ -20,10 +19,15 @@ export default function EventPage() {
 
   const [event, setEvent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const userData = useUser()
-  const user = userData?.user ?? null
+  const user = useUser()
+  const [ready, setReady] = useState(false)
   const [newComment, setNewComment] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [isAttending, setIsAttending] = useState(false)
+
+  useEffect(() => {
+    if (user && id) setReady(true)
+  }, [user, id])
 
   useEffect(() => {
     if (!id) return
@@ -57,6 +61,51 @@ export default function EventPage() {
     fetchEvent()
   }, [id])
 
+  useEffect(() => {
+    if (user && event?.attendees) {
+      const alreadyAttending = event.attendees.some((a: any) => a.user_id === user.id)
+      setIsAttending(alreadyAttending)
+    }
+  }, [event, user])
+
+  const toggleAttendance = async () => {
+    if (!user || !id) return
+
+    if (isAttending) {
+      // Cancelar asistencia
+      const { error } = await supabase
+        .from("event_attendees")
+        .delete()
+        .eq("event_id", id)
+        .eq("user_id", user.id)
+
+      if (!error) {
+        setEvent((prev: any) => ({
+          ...prev,
+          attendees: prev.attendees.filter((a: any) => a.user_id !== user.id)
+        }))
+        setIsAttending(false)
+      } else {
+        console.error("Error al cancelar asistencia:", error)
+      }
+    } else {
+      // Confirmar asistencia
+      const { data, error } = await supabase
+        .from("event_attendees")
+        .insert([{ event_id: id, user_id: user.id }])
+
+      if (error) {
+        console.error("❌ Error insertando asistencia:", error.message, error.details, error.hint)
+      } else {
+        console.log("✅ Asistencia registrada:", data)
+        setEvent((prev: any) => ({
+          ...prev,
+          attendees: [...prev.attendees, { user_id: user.id }]
+        }))
+        setIsAttending(true)
+      }
+    }
+  }
 
 
   const handleSubmitComment = async () => {
@@ -290,7 +339,14 @@ export default function EventPage() {
                 <p className="text-2xl font-bold mb-1">{event.price}</p>
                 <p className="text-sm text-gray-400">por persona</p>
               </div>
-              <Button className="w-full mb-4">Confirmar asistencia</Button>
+              <Button
+                className="w-full mb-4"
+                onClick={toggleAttendance}
+                disabled={!isAttending && event.attendees.length >= event.max_attendees}
+                variant={isAttending ? "destructive" : "default"}
+              >
+                {isAttending ? "Cancelar asistencia" : "Confirmar asistencia"}
+              </Button>
               <div className="text-center text-sm text-gray-400">
                 <p>Quedan {event.max_attendees - event.attendees.length} plazas disponibles</p>
               </div>

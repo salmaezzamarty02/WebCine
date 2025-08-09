@@ -33,6 +33,8 @@ export default function EditEventPage() {
   const params = useParams() as { id: string }
   const user = useUser()
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+
   const [form, setForm] = useState<EventForm>({
     title: "",
     description: "",
@@ -45,39 +47,31 @@ export default function EditEventPage() {
     maxAttendees: "",
     imageUrl: ""
   })
+
   const [schedule, setSchedule] = useState<ScheduleItem[]>([{ time: "", activity: "" }])
-  const [initialLoading, setInitialLoading] = useState(true)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>("")
 
   useEffect(() => {
     const loadEvent = async () => {
-      const { data: event, error: eventError } = await supabase
-        .from("events")
-        .select("*")
-        .eq("id", params.id)
-        .single()
+      const { data: event } = await supabase.from("events").select("*").eq("id", params.id).single()
+      const { data: eventSchedule } = await supabase.from("event_schedule").select("*").eq("event_id", params.id)
 
-      const { data: eventSchedule, error: scheduleError } = await supabase
-        .from("event_schedule")
-        .select("*")
-        .eq("event_id", params.id)
-
-      if (eventError || !event) {
-        console.error("Error cargando evento", eventError)
-        return
+      if (event) {
+        setForm({
+          title: event.title || "",
+          description: event.description || "",
+          longDescription: event.long_description || "",
+          date: event.date || "",
+          timeRange: event.time_range || "",
+          location: event.location || "",
+          address: event.address || "",
+          price: event.price || "",
+          maxAttendees: event.max_attendees?.toString() || "",
+          imageUrl: event.image_url || ""
+        })
+        setImagePreview(event.image_url || "")
       }
-
-      setForm({
-        title: event.title || "",
-        description: event.description || "",
-        longDescription: event.long_description || "",
-        date: event.date || "",
-        timeRange: event.time_range || "",
-        location: event.location || "",
-        address: event.address || "",
-        price: event.price || "",
-        maxAttendees: event.max_attendees?.toString() || "",
-        imageUrl: event.image_url || ""
-      })
 
       setSchedule(
         eventSchedule?.map((item) => ({
@@ -97,29 +91,60 @@ export default function EditEventPage() {
     setForm({ ...form, [name]: value })
   }
 
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null
+    if (file) {
+      setImageFile(file)
+      setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
   const handleScheduleChange = (index: number, field: keyof ScheduleItem, value: string) => {
     const newSchedule = [...schedule]
     newSchedule[index][field] = value
     setSchedule(newSchedule)
   }
 
-  const handleAddSchedule = () => {
-    setSchedule([...schedule, { time: "", activity: "" }])
-  }
-
+  const handleAddSchedule = () => setSchedule([...schedule, { time: "", activity: "" }])
   const handleRemoveSchedule = (index: number) => {
     const newSchedule = [...schedule]
     newSchedule.splice(index, 1)
     setSchedule(newSchedule)
   }
 
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imageFile || !user) return null
+    const ext = imageFile.name.split(".").pop()
+    const filename = `${crypto.randomUUID()}.${ext}`
+
+    const { data, error } = await supabase.storage
+      .from("event-covers")
+      .upload(filename, imageFile, {
+        cacheControl: "3600",
+        upsert: false,
+        metadata: { user_id: user.id }
+      })
+
+    if (error) {
+      console.error("Error subiendo imagen:", error)
+      return null
+    }
+
+    const { data: urlData } = supabase.storage.from("event-covers").getPublicUrl(data.path)
+    return urlData?.publicUrl ?? null
+  }
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!user) return
-
     setLoading(true)
 
-    // 1. Actualizar el evento
+    let imageUrl = form.imageUrl
+    if (imageFile) {
+      const uploaded = await uploadImage()
+      if (uploaded) imageUrl = uploaded
+    }
+
     const { error: updateError } = await supabase
       .from("events")
       .update({
@@ -131,7 +156,7 @@ export default function EditEventPage() {
         location: form.location,
         address: form.address,
         price: form.price,
-        image_url: form.imageUrl,
+        image_url: imageUrl,
         max_attendees: parseInt(form.maxAttendees || "0")
       })
       .eq("id", params.id)
@@ -142,10 +167,8 @@ export default function EditEventPage() {
       return
     }
 
-    // 2. Borrar bloques anteriores del programa
     await supabase.from("event_schedule").delete().eq("event_id", params.id)
 
-    // 3. Insertar los nuevos bloques
     const scheduleToInsert = schedule
       .filter((s) => s.time && s.activity)
       .map((s) => ({
@@ -167,6 +190,7 @@ export default function EditEventPage() {
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto p-4 space-y-6">
       <h1 className="text-2xl font-bold">Editar evento</h1>
 
+      {/* Campos de texto */}
       {Object.entries({
         title: "Título",
         description: "Descripción corta",
@@ -176,31 +200,28 @@ export default function EditEventPage() {
         location: "Lugar",
         address: "Dirección",
         price: "Precio",
-        maxAttendees: "Máximo de asistentes",
-        imageUrl: "URL de la imagen de portada"
+        maxAttendees: "Máximo de asistentes"
       }).map(([key, label]) => (
         <div key={key}>
           <Label htmlFor={key}>{label}</Label>
           {(key === "description" || key === "longDescription") ? (
-            <Textarea
-              id={key}
-              name={key}
-              value={form[key as keyof EventForm]}
-              onChange={handleChange}
-              required
-            />
+            <Textarea id={key} name={key} value={form[key as keyof EventForm]} onChange={handleChange} required />
           ) : (
-            <Input
-              id={key}
-              name={key}
-              value={form[key as keyof EventForm]}
-              onChange={handleChange}
-              required
-            />
+            <Input id={key} name={key} value={form[key as keyof EventForm]} onChange={handleChange} required />
           )}
         </div>
       ))}
 
+      {/* Imagen */}
+      <div>
+        <Label>Imagen de portada</Label>
+        {imagePreview && (
+          <img src={imagePreview} alt="Preview" className="rounded-md mb-2 w-full h-48 object-cover" />
+        )}
+        <Input type="file" accept="image/*" onChange={handleImageChange} />
+      </div>
+
+      {/* Programa */}
       <div>
         <Label>Programa del evento</Label>
         <div className="space-y-4 mt-2">

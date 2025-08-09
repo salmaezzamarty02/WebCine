@@ -7,7 +7,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Check, X, Calendar, MapPin, Clock, Eye } from "lucide-react"
+import { Check, X, Calendar, MapPin, Clock, Eye, AlertCircle } from "lucide-react"
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 
 type EventRequest = {
   id: string;
@@ -29,6 +37,7 @@ type EventRequest = {
     avatar?: string;
   };
 };
+
 export default function EventRequestsPage() {
   const [requests, setRequests] = useState<EventRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -115,66 +124,99 @@ export default function EventRequestsPage() {
 
         {(["pending", "approved", "rejected", "all"] as const).map((status) => (
           <TabsContent key={status} value={status} className="space-y-4 pt-4">
-            {filteredRequests[status].map((r) => (
-              <Card key={r.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-xl mb-1 flex gap-2 items-center">
-                        {r.title} {getBadge(r.status)}
-                      </CardTitle>
-                      <p className="text-muted-foreground text-sm">{r.description}</p>
-                    </div>
-                    {r.status === "pending" && (
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleUpdateStatus(r.id, "approved")}
-                          disabled={isProcessing}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleUpdateStatus(r.id, "rejected")}
-                          disabled={isProcessing}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span>{new Date(r.date).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{r.time_range}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span>{r.location}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={r.profiles?.avatar || "/placeholder.svg"} />
-                      <AvatarFallback>
-                        {r.profiles?.name?.charAt(0) || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">{r.profiles?.name}</p>
-                      <p className="text-xs text-muted-foreground">{r.profiles?.email}</p>
-                    </div>
+            {filteredRequests[status].length === 0 ? (
+              <Card>
+                <CardContent className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No hay solicitudes</h3>
+                    <p className="text-muted-foreground">No se encontraron solicitudes en esta categoría.</p>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              filteredRequests[status].map((r) => (
+                <Card key={r.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-xl mb-1 flex gap-2 items-center">
+                          {r.title} {getBadge(r.status)}
+                        </CardTitle>
+                        <p className="text-muted-foreground text-sm">{r.description}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {r.status === "pending" && (
+                          <>
+                            <Button
+                              onClick={() => handleUpdateStatus(r.id, "approved")}
+                              disabled={isProcessing}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={() => handleUpdateStatus(r.id, "rejected")}
+                              disabled={isProcessing}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-lg">
+                            <DialogHeader>
+                              <DialogTitle>{r.title}</DialogTitle>
+                              <DialogDescription>{r.long_description}</DialogDescription>
+                            </DialogHeader>
+                            <div className="text-sm space-y-2 mt-2">
+                              {r.address && <p><strong>Dirección:</strong> {r.address}</p>}
+                              {r.price && <p><strong>Precio:</strong> {r.price} €</p>}
+                              {r.max_attendees && <p><strong>Aforo máximo:</strong> {r.max_attendees}</p>}
+                              {r.image_url && <p><strong>Imagen:</strong> <a className="text-blue-600 underline" href={r.image_url} target="_blank">Ver imagen</a></p>}
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        <span>{new Date(r.date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>{r.time_range}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span>{r.location}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={r.profiles?.avatar || "/placeholder.svg"} />
+                        <AvatarFallback>
+                          {r.profiles?.name?.charAt(0) || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{r.profiles?.name}</p>
+                        <p className="text-xs text-muted-foreground">{r.profiles?.email}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </TabsContent>
         ))}
       </Tabs>

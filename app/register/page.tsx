@@ -104,7 +104,7 @@ export default function RegisterPage() {
       }
 
       if (res.ok) {
-        router.push("/home")
+        router.push("/login")
       } else {
         setErrors({ general: data.error || "Error al registrar" })
       }
