@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Search } from "lucide-react"
 
 export default function NewMoviePage() {
   const [title, setTitle] = useState('')
@@ -32,11 +33,22 @@ export default function NewMoviePage() {
   const [backdropPreview, setBackdropPreview] = useState('')
   const [isUploadingBackdrop, setIsUploadingBackdrop] = useState(false)
 
+  // Búsqueda en “Películas similares”
+  const [similarSearch, setSimilarSearch] = useState('')
+
   const router = useRouter()
 
   useEffect(() => {
     const fetchMovies = async () => {
-      const { data } = await supabase.from('movies').select('id, title')
+      const { data, error } = await supabase
+        .from('movies')
+        .select('id, title, release_year, image_url')
+        .order('release_year', { ascending: false })
+      if (error) {
+        console.error('Error cargando movies:', error)
+        setAllMovies([])
+        return
+      }
       setAllMovies(data || [])
     }
     fetchMovies()
@@ -79,7 +91,7 @@ export default function NewMoviePage() {
       const { data: urlData } = supabase.storage.from('movies').getPublicUrl(data.path)
       return urlData.publicUrl
 
-      // Bucket privado: 
+      // Bucket privado:
       // const { data: signed } = await supabase.storage.from('movies').createSignedUrl(data.path, 60 * 60)
       // return signed?.signedUrl ?? null
     } finally {
@@ -129,6 +141,12 @@ export default function NewMoviePage() {
     } finally {
       setIsUploadingBackdrop(false)
     }
+  }
+
+  const toggleSimilar = (m: any) => {
+    setSimilarMovies((prev) =>
+      prev.includes(m.id) ? prev.filter((id) => id !== m.id) : [...prev, m.id]
+    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -251,11 +269,15 @@ export default function NewMoviePage() {
           ) : null}
           <div className="flex gap-2">
             <Input type="file" accept="image/*" onChange={handlePosterChange} />
-            <Button type="button" onClick={async () => {
-              if (!posterFile) return alert('Seleccione un archivo primero.')
-              const u = await uploadPoster()
-              if (u) setImageUrl(u)
-            }} disabled={isUploadingPoster}>
+            <Button
+              type="button"
+              onClick={async () => {
+                if (!posterFile) return alert('Seleccione un archivo primero.')
+                const u = await uploadPoster()
+                if (u) setImageUrl(u)
+              }}
+              disabled={isUploadingPoster}
+            >
               {isUploadingPoster ? 'Subiendo...' : 'Subir cartel'}
             </Button>
           </div>
@@ -275,11 +297,15 @@ export default function NewMoviePage() {
           ) : null}
           <div className="flex gap-2">
             <Input type="file" accept="image/*" onChange={handleBackdropChange} />
-            <Button type="button" onClick={async () => {
-              if (!backdropFile) return alert('Seleccione un archivo primero.')
-              const u = await uploadBackdrop()
-              if (u) setBackdropUrl(u)
-            }} disabled={isUploadingBackdrop}>
+            <Button
+              type="button"
+              onClick={async () => {
+                if (!backdropFile) return alert('Seleccione un archivo primero.')
+                const u = await uploadBackdrop()
+                if (u) setBackdropUrl(u)
+              }}
+              disabled={isUploadingBackdrop}
+            >
               {isUploadingBackdrop ? 'Subiendo...' : 'Subir fondo'}
             </Button>
           </div>
@@ -306,28 +332,64 @@ export default function NewMoviePage() {
           />
         </div>
 
-        {/* Películas similares */}
-        <div>
-          <Label htmlFor="similar">Películas similares</Label>
-          <select
-            id="similar"
-            multiple
-            value={similarMovies}
-            onChange={(e) => {
-              const selected = Array.from(e.target.selectedOptions, (option) => option.value)
-              setSimilarMovies(selected)
-            }}
-            className="w-full h-40 border rounded-md p-2 bg-background text-foreground"
-          >
-            {allMovies.map((movie) => (
-              <option key={movie.id} value={movie.id}>
-                {movie.title}
-              </option>
-            ))}
-          </select>
-          <p className="text-sm text-muted-foreground mt-1">
-            Use Ctrl (Windows) o Cmd (Mac) para seleccionar varias.
-          </p>
+        {/* Películas similares (estilo “Añadir películas”) */}
+        <div className="space-y-3">
+          <Label>Películas similares</Label>
+
+          {/* Buscador */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={similarSearch}
+              onChange={(e) => setSimilarSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
+              className="pl-8"
+              placeholder="Buscar películas..."
+            />
+          </div>
+
+          {/* Grid de tarjetas (si no hay búsqueda, muestra todas) */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            {allMovies
+              .filter((m) => {
+                if (!similarSearch.trim()) return true
+                const t = (m.title || '').toLowerCase()
+                return t.includes(similarSearch.toLowerCase())
+              })
+              .map((m) => {
+                const selected = similarMovies.includes(m.id)
+                return (
+                  <div key={m.id} className="flex gap-4 border p-3 rounded">
+                    <div className="w-12 h-16 relative">
+                      <img
+                        src={m.image_url || "/placeholder.svg"}
+                        alt={m.title}
+                        className="w-12 h-16 object-cover rounded"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium">{m.title}</h4>
+                      <p className="text-sm text-gray-400">{m.release_year ?? ""}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={selected ? "outline" : "default"}
+                      onClick={() => toggleSimilar(m)}
+                    >
+                      {selected ? "Quitar" : "Añadir"}
+                    </Button>
+                  </div>
+                )
+              })}
+          </div>
+
+          {/* Resumen de seleccionadas (opcional) */}
+          {similarMovies.length > 0 && (
+            <div className="text-sm text-muted-foreground">
+              Seleccionadas: {similarMovies.length}
+            </div>
+          )}
         </div>
 
         <Button type="submit" className="mt-4" disabled={isUploadingPoster || isUploadingBackdrop}>
