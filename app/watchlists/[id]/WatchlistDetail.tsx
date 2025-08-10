@@ -85,61 +85,26 @@ export function WatchlistDetail({ watchlist }: { watchlist: any }) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(`/api/watchlists/${watchlist.id}/duplicate`, {
-                                method: "POST",
-                              })
-
-                              const data = await res.json()
-
-                              if (res.ok && data.id) {
-                                router.push(`/watchlists/${data.id}`)
-                              } else {
-                                alert("❌ Error al duplicar la lista: " + (data.error || "Desconocido"))
-                              }
-                            } catch (err) {
-                              console.error("Error duplicando lista:", err)
-                              alert("❌ Error inesperado al duplicar la lista.")
-                            }
-                          }}
-                        >
-                          Duplicar lista
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>Exportar</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-red-500"
-                          onClick={async () => {
-                            const confirmed = window.confirm("¿Estás segura de que quieres eliminar esta lista?")
-                            if (!confirmed) return
-
-                            const res = await fetch(`/api/watchlists/${watchlist.id}`, {
-                              method: "DELETE"
-                            })
-
-                            if (res.ok) {
-                              alert("Lista eliminada con éxito")
-                              window.location.href = "/watchlists"
-                            } else {
-                              const err = await res.json()
-                              alert(`Error al eliminar: ${err.error}`)
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Eliminar lista
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/watchlists/${watchlist.id}/duplicate`, {
+                            method: "POST",
+                          })
+                          const data = await res.json()
+                          if (res.ok && data.id) {
+                            router.push(`/watchlists/${data.id}`)
+                          } else {
+                            alert("❌ Error al duplicar la lista: " + (data.error || "Desconocido"))
+                          }
+                        } catch (err) {
+                          console.error("Error duplicando lista:", err)
+                          alert("❌ Error inesperado al duplicar la lista.")
+                        }
+                      }}
+                    >
+                      Duplicar lista
+                    </DropdownMenuItem>
                     <DropdownMenuItem>Exportar</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -151,10 +116,9 @@ export function WatchlistDetail({ watchlist }: { watchlist: any }) {
                         const res = await fetch(`/api/watchlists/${watchlist.id}`, {
                           method: "DELETE"
                         })
-
                         if (res.ok) {
                           alert("Lista eliminada con éxito")
-                          window.location.href = "/watchlists" // o redirige a donde prefieras
+                          window.location.href = "/watchlists"
                         } else {
                           const err = await res.json()
                           alert(`Error al eliminar: ${err.error}`)

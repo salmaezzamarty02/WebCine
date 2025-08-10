@@ -139,8 +139,7 @@ export default function ForumsPage() {
             <Input type="search" placeholder="Buscar en los foros..." className="pl-8 w-[200px] md:w-[250px]" />
           </div>
           <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo tema
+            <Link href="/forums/new">Nuevo tema</Link>
           </Button>
         </div>
       </div>

@@ -37,9 +37,11 @@ export default function EventsPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input type="search" placeholder="Buscar eventos..." className="pl-8 w-[200px] md:w-[250px]" />
           </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Solicitar creación de evento
+          <Button asChild>
+            <Link href="/events/request">
+              <Plus className="mr-2 h-4 w-4" />
+              Solicitar creación de evento
+            </Link>
           </Button>
         </div>
       </div>

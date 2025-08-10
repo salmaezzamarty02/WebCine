@@ -18,6 +18,13 @@ export interface FriendRequest {
   moviesWatched: number
 }
 
+export type ForumThreadUser = {
+  id: string
+  username: string | null
+  name: string | null
+  avatar: string | null
+}
+
 // Obtener todas las películas ordenadas por año
 export async function getAllMovies() {
   const { data, error } = await supabase
@@ -513,18 +520,6 @@ export async function getFriends(userId: string) {
   })
 }
 
-// export async function getFriendRequests(userId: string) {
-//   const { data, error } = await supabase
-//     .from("friendships")
-//     .select("*, requester:requester_id(*)")
-//     .eq("addressee_id", userId)
-//     .eq("status", "pending")
-
-//   if (error) throw error
-//   return data
-// }
-
-
 export async function getFriendRequests(userId: string): Promise<FriendRequest[]> {
   const { data, error } = await supabase
     .from("friendships")
@@ -626,4 +621,133 @@ export async function getFriendSuggestions(currentUserId: string): Promise<UserS
   )
 
   return enriched
+}
+
+
+
+// --- Foro: utilidades básicas por categoría ---
+
+export type ForumThreadListItem = {
+  id: string
+  title: string
+  content: string
+  created_at: string
+  category_id: string
+  user: ForumThreadUser | null
+  replies: number
+  lastActivity: string
+}
+
+// 0) Obtener la categoría (id, name)
+export async function getForumCategoryById(categoryId: string) {
+  const { data, error } = await supabase
+    .from("forum_categories")
+    .select("id, name")
+    .eq("id", categoryId)
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function getThreadsByCategorySimple(categoryId: string): Promise<ForumThreadListItem[]> {
+  const { data: threads, error: thErr } = await supabase
+    .from("forum_threads")
+    .select(`
+      id,
+      title,
+      content,
+      created_at,
+      category_id,
+      user:profiles!forum_threads_user_profile_fkey ( id, username, name, avatar )
+    `)
+    .eq("category_id", categoryId)
+    .order("created_at", { ascending: false })
+  if (thErr) throw thErr
+
+  // 👇 Normalizamos el user (puede venir como array)
+  const base = (threads ?? []).map(t => ({
+    ...t,
+   user: (Array.isArray(t.user) ? t.user[0] : t.user) ?? null,
+  }))
+
+  if (base.length === 0) return []
+
+  const threadIds = base.map(t => t.id)
+  const { data: comments, error: cmErr } = await supabase
+    .from("forum_comments")
+    .select("id, thread_id, created_at")
+    .in("thread_id", threadIds)
+  if (cmErr) throw cmErr
+
+  const agg = new Map<string, { count: number; last: string }>()
+  for (const t of base) agg.set(t.id, { count: 0, last: t.created_at })
+  for (const c of (comments ?? [])) {
+    const a = agg.get(c.thread_id)
+    if (!a) continue
+    a.count += 1
+    if (new Date(c.created_at) > new Date(a.last)) a.last = c.created_at
+  }
+
+  return base.map(t => {
+    const a = agg.get(t.id)!
+    return {
+      ...t,
+      replies: a.count,
+      lastActivity: a.last,
+    }
+  })
+}
+
+
+// 2) Participantes en una categoría = autores de hilos + comentaristas
+export async function getCategoryParticipants(categoryId: string): Promise<ForumThreadUser[]> {
+  // Hilos para: autores y para saber qué thread_ids hay
+  const { data: threads, error: thErr } = await supabase
+    .from("forum_threads")
+    .select("id, user_id")
+    .eq("category_id", categoryId)
+  if (thErr) throw thErr
+
+  const threadIds = (threads ?? []).map(t => t.id)
+  const authorIds = new Set<string>((threads ?? []).map(t => t.user_id).filter(Boolean))
+
+  // Comentarios => user_id
+  let commenterIds = new Set<string>()
+  if (threadIds.length > 0) {
+    const { data: comments, error: cmErr } = await supabase
+      .from("forum_comments")
+      .select("user_id, thread_id")
+      .in("thread_id", threadIds)
+    if (cmErr) throw cmErr
+    for (const c of (comments ?? [])) {
+      if (c.user_id) commenterIds.add(c.user_id)
+    }
+  }
+
+  const allIds = Array.from(new Set<string>([...authorIds, ...commenterIds]))
+  if (allIds.length === 0) return []
+
+  const { data: profiles, error: pfErr } = await supabase
+    .from("profiles")
+    .select("id, username, name, avatar")
+    .in("id", allIds)
+  if (pfErr) throw pfErr
+
+  // Orden simple por nombre/username
+  return (profiles ?? []).sort((a, b) =>
+    (a.name ?? a.username ?? "").localeCompare(b.name ?? b.username ?? "")
+  )
+}
+
+
+// Top N hilos con más comentarios para una categoría
+export async function getTopThreadsByCommentsForCategory(
+  categoryId: string,
+  limit = 5
+): Promise<ForumThreadListItem[]> {
+  const threads = await getThreadsByCategorySimple(categoryId)
+  return threads
+    .slice()
+    .sort((a, b) => b.replies - a.replies)
+    .slice(0, limit)
 }

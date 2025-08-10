@@ -35,7 +35,11 @@ export default function EventPage() {
     const fetchEvent = async () => {
       const { data: eventData, error } = await supabase
         .from("events")
-        .select(`*, schedule:event_schedule(time_range, activity), attendees:event_attendees(user_id)`)
+        .select(`
+      *,
+      schedule:event_schedule(time_range, activity),
+      attendees:event_attendees(user_id)
+    `)
         .eq("id", id)
         .single()
 
@@ -45,18 +49,45 @@ export default function EventPage() {
         return
       }
 
+      // Comentarios (ya con usuario y replies desde su queries.ts)
       const comments = await getEventCommentsById(id)
       eventData.comments = comments || []
 
-      const { data: user } = await supabase
+      // Organizador
+      const { data: organizer } = await supabase
         .from("profiles")
-        .select("id, name, avatar")
+        .select("id, name, username, avatar")
         .eq("id", eventData.user_id)
         .single()
 
-      setEvent({ ...eventData, user })
+      // PERFILES de asistentes
+      const attendeeIds = (eventData.attendees ?? []).map((a: any) => a.user_id)
+      let attendeesDetailed: any[] = []
+      if (attendeeIds.length > 0) {
+        const { data: profiles, error: pfErr } = await supabase
+          .from("profiles")
+          .select("id, name, username, avatar")
+          .in("id", attendeeIds)
+
+        if (pfErr) {
+          console.error("Error cargando perfiles de asistentes:", pfErr)
+        } else {
+          const byId = new Map((profiles ?? []).map(p => [p.id, p]))
+          attendeesDetailed = eventData.attendees.map((a: any) => ({
+            user_id: a.user_id,
+            ...byId.get(a.user_id) // name, username, avatar
+          }))
+        }
+      }
+
+      setEvent({
+        ...eventData,
+        user: organizer ?? { id: eventData.user_id, name: "Usuario", avatar: null },
+        attendees: attendeesDetailed
+      })
       setLoading(false)
     }
+
 
     fetchEvent()
   }, [id])
@@ -237,10 +268,11 @@ export default function EventPage() {
                       key={attendee.user_id}
                       className="flex items-center p-3 rounded-lg border border-gray-800 hover:bg-gray-800 transition-colors"
                     >
-                      <Avatar className="h-10 w-10 mr-3">
-                        <AvatarFallback>👤</AvatarFallback>
+                      <Avatar className="h-12 w-12 mb-2">
+                        <AvatarImage src={attendee.avatar || "/placeholder.svg"} alt={attendee.name ?? attendee.username ?? "Usuario"} />
+                        <AvatarFallback>{(attendee.username ?? attendee.name ?? "U").substring(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      <span className="font-medium">Usuario</span>
+                      <div className="text-sm font-medium text-center">{attendee.name ?? attendee.username ?? "Usuario"}</div>
                     </Link>
                   ))}
                 </div>
@@ -362,6 +394,6 @@ export default function EventPage() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   )
 }
