@@ -376,6 +376,71 @@ export async function addForumComment({ thread_id, user_id, content }: {
 
   if (error) throw new Error(error.message)
 }
+
+type EventRow = {
+  id: string
+  title: string
+  description: string | null
+  date: string // viene como date; lo trataremos como string
+  time_range: string | null
+  location: string | null
+  image_url: string | null
+  max_attendees: number | null
+  user_id: string
+  event_attendees: { id: string }[] | null
+}
+
+type Organizer = { id: string; name: string | null; avatar: string | null }
+
+export type EventWithExtras = Omit<EventRow, "event_attendees"> & {
+  attendees: number
+  organizer: Organizer | null
+}
+
+export async function getEvents(): Promise<EventWithExtras[]> {
+  // 1) Eventos + asistentes (esto sí se puede embeber por la FK event_attendees.event_id -> events.id)
+  const { data: eventsRaw, error: evErr } = await supabase
+    .from("events")
+    .select(`
+      id,
+      title,
+      description,
+      date,
+      time_range,
+      location,
+      image_url,
+      max_attendees,
+      user_id,
+      event_attendees ( id )
+    `)
+    .order("date", { ascending: true })
+
+  if (evErr) throw evErr
+  const events: EventRow[] = eventsRaw ?? []
+
+  // 2) Obtener perfiles de organizadores con un IN
+  const userIds = Array.from(new Set(events.map(e => e.user_id)))
+  let byProfileId = new Map<string, Organizer>()
+
+  if (userIds.length > 0) {
+    const { data: profiles, error: pfErr } = await supabase
+      .from("profiles")
+      .select("id, name, avatar")
+      .in("id", userIds)
+
+    if (pfErr) throw pfErr
+    byProfileId = new Map((profiles ?? []).map(p => [p.id, p as Organizer]))
+  }
+
+  // 3) Unir y derivar attendees count
+  return events.map(e => ({
+    ...e,
+    attendees: Array.isArray(e.event_attendees) ? e.event_attendees.length : 0,
+    organizer: byProfileId.get(e.user_id) ?? null,
+  }))
+}
+
+
 export async function getEventCommentsById(eventId: string) {
   const { data, error } = await supabase
     .from("event_comments")

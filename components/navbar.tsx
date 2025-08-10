@@ -18,6 +18,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { usePathname } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/context/auth-provider"
+import { RiChatThreadFill } from "react-icons/ri"
+
+
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -26,16 +29,16 @@ export default function Navbar() {
   const { profile: user } = useAuth()
 
   const handleLogout = async () => {
-  await supabase.auth.signOut()
+    await supabase.auth.signOut()
 
-  localStorage.removeItem("access_token")
-  localStorage.removeItem("refresh_token")
+    localStorage.removeItem("access_token")
+    localStorage.removeItem("refresh_token")
 
-  // Redirige solo cuando el contexto haya procesado el cambio
-  setTimeout(() => {
-    router.push("/")
-  }, 100) // Delay mínimo para que el contexto se actualice primero
-}
+    // Redirige solo cuando el contexto haya procesado el cambio
+    setTimeout(() => {
+      router.push("/")
+    }, 100) // Delay mínimo para que el contexto se actualice primero
+  }
 
 
   if (pathname === "/login" || pathname === "/register") {
@@ -56,7 +59,10 @@ export default function Navbar() {
           <Link href="/home" className="text-sm font-medium hover:text-primary"><Home className="h-5 w-5" /></Link>
           <Link href="/movies" className="text-sm font-medium hover:text-primary"><Film className="h-5 w-5" /></Link>
           <Link href="/watchlists" className="text-sm font-medium hover:text-primary"><List className="h-5 w-5" /></Link>
-          <Link href="/forums" className="text-sm font-medium hover:text-primary"><MessageSquare className="h-5 w-5" /></Link>
+          <Link href="/chat" className="text-sm font-medium hover:text-primary"><MessageSquare className="h-5 w-5" /></Link>
+          <Link href="/forums" className="text-sm font-medium hover:text-primary">
+            <RiChatThreadFill className="h-5 w-5" />
+          </Link>
           <Link href="/friends" className="text-sm font-medium hover:text-primary"><Users className="h-5 w-5" /></Link>
         </nav>
 
