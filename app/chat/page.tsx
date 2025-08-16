@@ -7,12 +7,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Search, Send, ImageIcon, Paperclip, MoreHorizontal, Film, Check, CheckCheck } from "lucide-react"
+import {
+  Search,
+  Send,
+  ImageIcon,
+  Paperclip,
+  MoreHorizontal,
+  Film,
+  Check,
+  CheckCheck,
+  MessageSquare,
+  ArrowLeft,
+} from "lucide-react"
 import Image from "next/image"
 
 export default function ChatPage() {
   const [message, setMessage] = useState("")
-  const [activeChat, setActiveChat] = useState("chat1")
+  const [activeChat, setActiveChat] = useState<string | null>("chat1") // Set default active chat and allow null
+  const [showChatList, setShowChatList] = useState(true) // For mobile navigation
 
   // Mock data
   const chats = [
@@ -21,7 +33,7 @@ export default function ChatPage() {
       user: {
         id: "user1",
         name: "Ana García",
-        avatar: "/placeholder.svg?height=40&width=40&text=AG",
+        avatar: "/dune.jpeg?height=40&width=40&text=AG",
         online: true,
       },
       lastMessage: {
@@ -37,7 +49,7 @@ export default function ChatPage() {
       user: {
         id: "user2",
         name: "Carlos Rodríguez",
-        avatar: "/placeholder.svg?height=40&width=40&text=CR",
+        avatar: "/dune.jpeg?height=40&width=40&text=CR",
         online: false,
       },
       lastMessage: {
@@ -53,7 +65,7 @@ export default function ChatPage() {
       user: {
         id: "user3",
         name: "Laura Martínez",
-        avatar: "/placeholder.svg?height=40&width=40&text=LM",
+        avatar: "/dune.jpeg?height=40&width=40&text=LM",
         online: true,
       },
       lastMessage: {
@@ -69,7 +81,7 @@ export default function ChatPage() {
       user: {
         id: "user4",
         name: "Miguel Sánchez",
-        avatar: "/placeholder.svg?height=40&width=40&text=MS",
+        avatar: "/dune.jpeg?height=40&width=40&text=MS",
         online: false,
       },
       lastMessage: {
@@ -85,7 +97,7 @@ export default function ChatPage() {
       user: {
         id: "user5",
         name: "Elena Gómez",
-        avatar: "/placeholder.svg?height=40&width=40&text=EG",
+        avatar: "/dune.jpeg?height=40&width=40&text=EG",
         online: false,
       },
       lastMessage: {
@@ -136,7 +148,7 @@ export default function ChatPage() {
     },
     {
       id: "msg6",
-      image: "/placeholder.svg?height=300&width=500&text=Dune+Scene",
+      image: "/dune.jpeg?height=300&width=500&text=Dune+Scene",
       time: "14:29",
       isMine: true,
       status: "read",
@@ -159,7 +171,6 @@ export default function ChatPage() {
 
   const handleSendMessage = () => {
     if (message.trim()) {
-      // In a real app, this would send the message to the server
       console.log("Sending message:", message)
       setMessage("")
     }
@@ -172,11 +183,20 @@ export default function ChatPage() {
     }
   }
 
+  const handleChatSelect = (chatId: string) => {
+    setActiveChat(chatId)
+    setShowChatList(false) // Hide chat list on mobile when chat is selected
+  }
+
   return (
     <div className="container h-[calc(100vh-4rem)] py-6 px-0 md:px-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-full border border-gray-800 rounded-lg overflow-hidden">
+      <div className="flex h-full border border-gray-800 rounded-lg overflow-hidden">
         {/* Chat List */}
-        <div className="md:col-span-1 border-r border-gray-800 flex flex-col">
+        <div
+          className={`w-full md:w-80 lg:w-96 border-r border-gray-800 flex flex-col ${
+            showChatList ? "block" : "hidden md:block"
+          }`}
+        >
           <div className="p-4 border-b border-gray-800">
             <h1 className="text-xl font-bold mb-4">Mensajes</h1>
             <div className="relative">
@@ -192,12 +212,12 @@ export default function ChatPage() {
                 className={`w-full text-left p-4 border-b border-gray-800 hover:bg-card/80 transition-colors ${
                   activeChat === chat.id ? "bg-card" : ""
                 }`}
-                onClick={() => setActiveChat(chat.id)}
+                onClick={() => handleChatSelect(chat.id)}
               >
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={chat.user.avatar} alt={chat.user.name} />
+                      <AvatarImage src={chat.user.avatar || "/dune.jpeg"} alt={chat.user.name} />
                       <AvatarFallback>{chat.user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     {chat.user.online && (
@@ -235,15 +255,19 @@ export default function ChatPage() {
         </div>
 
         {/* Chat Area */}
-        <div className="hidden md:flex md:col-span-2 lg:col-span-3 flex-col">
+        <div className={`flex-1 flex flex-col ${!showChatList ? "block" : "hidden md:flex"}`}>
           {activeChat ? (
             <>
               {/* Chat Header */}
               <div className="p-4 border-b border-gray-800 flex items-center justify-between">
                 <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setShowChatList(true)}>
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+
                   <Avatar className="h-10 w-10">
                     <AvatarImage
-                      src={chats.find((c) => c.id === activeChat)?.user.avatar}
+                      src={chats.find((c) => c.id === activeChat)?.user.avatar || "/dune.jpeg"}
                       alt={chats.find((c) => c.id === activeChat)?.user.name}
                     />
                     <AvatarFallback>
@@ -290,7 +314,7 @@ export default function ChatPage() {
                       {msg.image && (
                         <div className="rounded-md overflow-hidden mb-1">
                           <Image
-                            src={msg.image || "/placeholder.svg"}
+                            src={msg.image || "/dune.jpeg"}
                             alt="Shared image"
                             width={300}
                             height={200}
@@ -351,18 +375,7 @@ export default function ChatPage() {
             </div>
           )}
         </div>
-
-        {/* Empty State for Mobile */}
-        <div className="md:hidden flex-1 flex flex-col items-center justify-center p-4 text-center">
-          <div className="bg-gray-800 rounded-full p-6 mb-4">
-            <MessageSquare className="h-10 w-10 text-gray-400" />
-          </div>
-          <h2 className="text-xl font-medium mb-2">Selecciona un chat</h2>
-          <p className="text-gray-400 mb-6">Elige una conversación de la lista para ver los mensajes.</p>
-        </div>
       </div>
     </div>
   )
 }
-
-import { MessageSquare } from "lucide-react"

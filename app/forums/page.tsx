@@ -15,7 +15,7 @@ export default function ForumsPage() {
       name: "General",
       description: "Discusiones generales sobre cine",
       icon: <Film className="h-5 w-5" />,
-      threadCount: 156,
+      threadCount: 9,
       color: "bg-blue-500",
     },
     {
@@ -23,7 +23,7 @@ export default function ForumsPage() {
       name: "Recomendaciones",
       description: "Pide y comparte recomendaciones de películas",
       icon: <Tag className="h-5 w-5" />,
-      threadCount: 98,
+      threadCount: 5,
       color: "bg-green-500",
     },
     {
@@ -31,7 +31,7 @@ export default function ForumsPage() {
       name: "Análisis y críticas",
       description: "Análisis en profundidad y críticas de películas",
       icon: <MessageSquare className="h-5 w-5" />,
-      threadCount: 124,
+      threadCount: 6,
       color: "bg-purple-500",
     },
     {
@@ -39,7 +39,7 @@ export default function ForumsPage() {
       name: "Directores",
       description: "Discusiones sobre directores y sus filmografías",
       icon: <Users className="h-5 w-5" />,
-      threadCount: 87,
+      threadCount: 3,
       color: "bg-yellow-500",
     },
     {
@@ -47,7 +47,7 @@ export default function ForumsPage() {
       name: "Géneros",
       description: "Debates sobre géneros cinematográficos",
       icon: <Tag className="h-5 w-5" />,
-      threadCount: 112,
+      threadCount: 8,
       color: "bg-red-500",
     },
   ]

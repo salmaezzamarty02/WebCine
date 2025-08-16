@@ -455,27 +455,28 @@ export async function getEventCommentsById(eventId: string) {
       id,
       text,
       created_at,
-      user:user_id (
-        id,
-        username,
-        avatar
-      ),
+      user:profiles!fk_event_comments_user ( id, username, name, avatar ),
       replies:event_comment_replies (
         id,
         text,
         created_at,
-        user:user_id (
-          id,
-          username,
-          avatar
-        )
+        user:profiles!fk_event_comment_replies_user ( id, username, name, avatar )
       )
     `)
     .eq("event_id", eventId)
     .order("created_at", { ascending: false })
 
   if (error) throw error
-  return data
+
+  // Normaliza por si llega como array (a veces pasa con relaciones ambiguas)
+  return (data ?? []).map((c: any) => ({
+    ...c,
+    user: Array.isArray(c.user) ? c.user[0] ?? null : c.user,
+    replies: (c.replies ?? []).map((r: any) => ({
+      ...r,
+      user: Array.isArray(r.user) ? r.user[0] ?? null : r.user,
+    })),
+  }))
 }
 
 export async function addEventComment(eventId: string, userId: string, text: string) {

@@ -104,52 +104,87 @@ export default function RequestEventPage() {
   }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!user) return
+  e.preventDefault()
+  if (!user) return
 
-    setLoading(true)
+  setLoading(true)
 
+  try {
+    // 1) Asegurar que el perfil existe (por la FK a profiles)
+    const { data: profileRow, error: profileErr } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    if (profileErr) throw profileErr
+
+    if (!profileRow) {
+      // Cree un perfil mínimo; ajuste campos si los necesita
+      const { error: upsertErr } = await supabase.from("profiles").insert({
+        id: user.id,
+        email: user.email ?? null,
+        username: user.user_metadata?.username ?? null,
+        name: user.user_metadata?.name ?? null
+      })
+      if (upsertErr) throw upsertErr
+    }
+
+    // 2) Subida de imagen (puede devolver null y es válido)
     const imageUrl = await uploadImage()
 
+    // 3) Asegurar formato de fecha ISO (si su input no es type="date")
+    const isoDate =
+      /^\d{4}-\d{2}-\d{2}$/.test(form.date)
+        ? form.date
+        : new Date(form.date).toISOString().slice(0, 10)
+
+    // 4) Insert de la solicitud
     const { data: request, error } = await supabase
       .from("event_requests")
       .insert({
         user_id: user.id,
-        title: form.title,
-        description: form.description,
-        long_description: form.longDescription,
-        date: form.date,
-        time_range: form.timeRange,
-        location: form.location,
-        address: form.address,
-        price: form.price,
-        image_url: imageUrl,
-        max_attendees: parseInt(form.maxAttendees || "0"),
+        title: form.title.trim(),
+        description: form.description?.trim() || null,
+        long_description: form.longDescription?.trim() || null,
+        date: isoDate,
+        time_range: form.timeRange?.trim() || null,
+        location: form.location?.trim() || null,
+        address: form.address?.trim() || null,
+        price: form.price?.trim() || null,
+        image_url: imageUrl || null,
+        max_attendees: Number.isNaN(parseInt(form.maxAttendees)) ? null : parseInt(form.maxAttendees),
         status: "pending"
       })
       .select("id")
       .single()
 
-    if (error || !request) {
-      console.error("Error enviando solicitud", error)
-      setLoading(false)
-      return
-    }
+    if (error || !request) throw error ?? new Error("No se devolvió la solicitud creada")
 
+    // 5) Insert del programa si procede
     const scheduleInserts = schedule
       .filter((s) => s.time && s.activity)
       .map((s) => ({
         request_id: request.id,
-        time_range: s.time,
-        activity: s.activity
+        time_range: s.time.trim(),
+        activity: s.activity.trim()
       }))
 
     if (scheduleInserts.length > 0) {
-      await supabase.from("event_request_schedule").insert(scheduleInserts)
+      const { error: schErr } = await supabase
+        .from("event_request_schedule")
+        .insert(scheduleInserts)
+      if (schErr) throw schErr
     }
 
     router.push("/events?solicitud=enviada")
+  } catch (err) {
+    console.error("Error enviando solicitud:", err)
+  } finally {
+    setLoading(false)
   }
+}
+
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto p-4 space-y-6">

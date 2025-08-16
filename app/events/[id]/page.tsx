@@ -316,9 +316,9 @@ export default function EventPage() {
 
                       <div className="flex-1">
                         <div className="text-sm text-gray-400 mb-1">
-                          {comment.user?.name ? (
+                          {comment.user ? (
                             <Link href={`/profile/${comment.user.id}`} className="font-medium text-white hover:underline">
-                              {comment.user.name}
+                              {comment.user.name ?? comment.user.username ?? "Usuario"}
                             </Link>
                           ) : (
                             <span className="italic text-gray-400">Anónimo</span>

@@ -105,7 +105,6 @@ export function WatchlistDetail({ watchlist }: { watchlist: any }) {
                     >
                       Duplicar lista
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Exportar</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-red-500"

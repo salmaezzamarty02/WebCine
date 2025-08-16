@@ -281,8 +281,8 @@ export default function NewMoviePage() {
               {isUploadingPoster ? 'Subiendo...' : 'Subir cartel'}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">O pegue una URL directa:</p>
-          <Input placeholder="https://..." value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+          {/* <p className="text-xs text-muted-foreground">O pegue una URL directa:</p>
+          <Input placeholder="https://..." value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} /> */}
         </div>
 
         {/* Subida de fondo */}
@@ -309,8 +309,8 @@ export default function NewMoviePage() {
               {isUploadingBackdrop ? 'Subiendo...' : 'Subir fondo'}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">O pegue una URL directa:</p>
-          <Input placeholder="https://..." value={backdropUrl} onChange={(e) => setBackdropUrl(e.target.value)} />
+          {/* <p className="text-xs text-muted-foreground">O pegue una URL directa:</p>
+          <Input placeholder="https://..." value={backdropUrl} onChange={(e) => setBackdropUrl(e.target.value)} /> */}
         </div>
 
         {/* Resto */}

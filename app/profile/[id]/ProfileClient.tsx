@@ -118,7 +118,7 @@ export default function ProfileClient({ profile }: { profile: any }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 text-center">
             <div className="rounded-lg border border-gray-800 p-3">
               <div className="text-2xl font-bold">{profile.stats.moviesWatched}</div>
               <div className="text-sm text-gray-400">Películas vistas</div>
@@ -132,12 +132,8 @@ export default function ProfileClient({ profile }: { profile: any }) {
               <div className="text-sm text-gray-400">Listas</div>
             </div>
             <div className="rounded-lg border border-gray-800 p-3">
-              <div className="text-2xl font-bold">{profile.stats.followers}</div>
-              <div className="text-sm text-gray-400">Seguidores</div>
-            </div>
-            <div className="rounded-lg border border-gray-800 p-3">
-              <div className="text-2xl font-bold">{profile.stats.following}</div>
-              <div className="text-sm text-gray-400">Siguiendo</div>
+              <div className="text-2xl font-bold">{profile.stats.friends}</div>
+              <div className="text-sm text-gray-400">Amigos</div>
             </div>
           </div>
         </div>
@@ -158,9 +154,23 @@ export default function ProfileClient({ profile }: { profile: any }) {
             {profile.recentActivity.length === 0 ? (
               <p className="text-gray-400">Sin actividad reciente.</p>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {profile.recentActivity.map((activity: any) => (
                   <div key={activity.id} className="rounded-lg border border-gray-800 p-4">
+                    {/* Cabecera por tipo */}
+                    <div className="flex items-center gap-2 mb-3">
+                      {activity.type === "review" && <Film className="h-5 w-5 text-primary" />}
+                      {activity.type === "watched" && <Eye className="h-5 w-5 text-primary" />}
+                      {activity.type === "list" && <ListIcon className="h-5 w-5 text-primary" />}
+                      <span className="font-medium">
+                        {activity.type === "review" && "Reseña de película"}
+                        {activity.type === "watched" && "Película vista"}
+                        {activity.type === "list" && "Lista creada"}
+                      </span>
+                      <span className="text-sm text-gray-500">{activity.date}</span>
+                    </div>
+
+                    {/* Contenido por tipo */}
                     {activity.type === "review" && (
                       <div className="flex items-start gap-4">
                         <Image
@@ -174,15 +184,17 @@ export default function ProfileClient({ profile }: { profile: any }) {
                           <Link href={`/movie/${activity.movie.id}`} className="font-semibold hover:underline">
                             {activity.movie.title}
                           </Link>
-                          <p className="text-sm text-gray-400">{activity.content}</p>
                           <div className="flex items-center gap-1 mt-1">
                             <Star className="h-4 w-4 text-yellow-400" />
                             <span className="text-sm">{activity.rating}/5</span>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">{activity.date}</p>
+                          {activity.content && (
+                            <p className="text-sm text-gray-300 mt-2">{activity.content}</p>
+                          )}
                         </div>
                       </div>
                     )}
+
                     {activity.type === "watched" && (
                       <div className="flex items-start gap-4">
                         <Image
@@ -200,19 +212,51 @@ export default function ProfileClient({ profile }: { profile: any }) {
                         </div>
                       </div>
                     )}
+
+                    {activity.type === "list" && (
+                      <div>
+                        <Link
+                          href={`/watchlists/${activity.list.id}`}
+                          className="font-medium hover:underline mb-3 block"
+                        >
+                          {activity.list.title}
+                        </Link>
+
+                        <div className="flex gap-2 overflow-x-auto pb-2">
+                          {(activity.movies ?? []).map((movie: any) => (
+                            <div key={movie.id} className="w-20 flex-shrink-0">
+                              <div className="w-20 h-30 relative mb-1">
+                                <Image
+                                  src={movie.poster || "/placeholder.svg"}
+                                  alt={movie.title}
+                                  width={80}
+                                  height={120}
+                                  className="rounded object-cover"
+                                />
+                              </div>
+                              <p className="text-xs truncate">{movie.title}</p>
+                            </div>
+                          ))}
+                          {(!activity.movies || activity.movies.length === 0) && (
+                            <p className="text-sm text-gray-500">Sin películas en la lista aún.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </TabsContent>
 
+
           {/* PELÍCULAS */}
           <TabsContent value="movies">
-            {profile.favoriteMovies.length === 0 ? (
-              <p className="text-gray-400">Sin películas favoritas.</p>
+            {(!profile.watchedMovies || profile.watchedMovies.length === 0) ? (
+              <p className="text-gray-400">Sin películas vistas.</p>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {profile.favoriteMovies.map((movie: any) => (
+                {profile.watchedMovies.map((movie: any) => (
                   <MovieCard
                     key={movie.id}
                     id={movie.id}
@@ -240,7 +284,7 @@ export default function ProfileClient({ profile }: { profile: any }) {
                   >
                     <div className="h-32 relative">
                       <Image
-                        src={list.cover_url || "/placeholder.svg"}
+                        src={list.cover_url || "/cover.png"}
                         alt={list.name}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform"

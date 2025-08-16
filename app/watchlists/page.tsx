@@ -25,10 +25,10 @@ export default function WatchlistsPage() {
       movieCount: 32,
       user: {
         id: "user1",
-        name: "Ana García",
+        name: "Salma Ezzamarty",
         avatar: "/placeholder.svg?height=40&width=40&text=AG",
       },
-      coverImage: "/placeholder.svg?height=300&width=600&text=Indie",
+      coverImage: "/cover.png",
       updatedAt: "Actualizada hace 3 días",
     },
     {
@@ -41,7 +41,7 @@ export default function WatchlistsPage() {
         name: "Carlos Rodríguez",
         avatar: "/placeholder.svg?height=40&width=40&text=CR",
       },
-      coverImage: "/placeholder.svg?height=300&width=600&text=Sci-Fi",
+      coverImage: "/cover.png",
       updatedAt: "Actualizada hace 5 días",
     },
   ]
@@ -59,10 +59,12 @@ export default function WatchlistsPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input type="search" placeholder="Buscar listas..." className="pl-8 w-[200px] md:w-[250px]" />
           </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva lista
-          </Button>
+          <Link href="/watchlists/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva lista
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -144,7 +146,7 @@ export default function WatchlistsPage() {
                 Encuentra listas interesantes creadas por otros usuarios
               </p>
               <Button asChild>
-                <Link href="/discover/lists">Explorar listas</Link>
+                <Link href="/discover">Explorar listas</Link>
               </Button>
             </div>
           </div>
